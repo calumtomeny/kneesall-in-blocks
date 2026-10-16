@@ -750,11 +750,15 @@ export function buildKneesall(data) {
   for (const P of buildings) polyCells(P.poly, (x, z) => { const i = G.i(x, z); if (i >= 0) { G.stud[i] = 0; G.top[i] = G.base[i] = P.y; } });
 
   const newark = chainPolylines(roads.filter(r => r.type === 'primary').map(r => r.pts)).sort((a, b) => polylineLength(b) - polylineLength(a))[0];
+  // the stretch of the A616 inside the baseplate, for the traffic
+  let carPath = [], cur = [];
+  for (const q of newark ?? []) { if (inBounds(q[0], q[1], 3)) cur.push(q); else { if (cur.length > carPath.length) carPath = cur; cur = []; } }
+  if (cur.length > carPath.length) carPath = cur;
   const namedRoads = roads.filter(r => r.name);
   const roadY = (x, z) => terrainY(x, z) + ROAD_TOP;
   let minY = Infinity; for (let i = 0; i < G.base.length; i++) minY = Math.min(minY, G.base[i]);
   G.minY = minY;
-  return { G, W, buildings, roadB, labels, wires, attribution: data.attribution, newark, namedRoads, terrainY, roadY };
+  return { G, W, buildings, roadB, labels, wires, attribution: data.attribution, newark, carPath, namedRoads, terrainY, roadY };
 }
 
 // Merge ground cells into row runs. Tops go in the studded/smooth builders; terrace sides (where the

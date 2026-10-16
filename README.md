@@ -24,7 +24,9 @@ Nothing is made up. Where no data says what something looks like, it gets a plai
 white front doors on houses nobody has looked at, and regularly spaced windows on walls not seen from a road. The
 churchyard's headstones are laid out in rows, as the real ones aren't mapped. Things that exist but whose
 positions aren't known are left out: most street lamps and road signs (only those located in Street View are
-drawn), and the cars, people and animals.
+drawn), and the parked cars, people and animals. The one exception is the traffic on Newark Road (the A616):
+made-up cars, vans and now and then a cement mixer drive through on the left at about 30 mph, and stop for you
+if you stand in the road.
 
 ### Roof materials
 
@@ -115,5 +117,5 @@ Steps 4–7 add to the JSON written by step 1, so run them in that order.
 - `js/survey.js` – builds buildings from measured parts (fitted or hand-surveyed), yards and drives from `data/survey.json`
 - `tools/fit_buildings.py`, `tools/survey_grid.py`, `tools/streetview_bearings.py` – fit every building's parts from the LIDAR; print LIDAR grids for surveying; which buildings a Street View panorama sees
 - `js/bricks.js` – voxel world → merged, bevelled brick geometry, and a plain version of each chunk (only the faces that show, merged into rectangles) drawn from a distance
-- `js/parts.js`, `js/landmarks.js`, `js/actors.js` – houses, street furniture, church, the player's minifig
+- `js/parts.js`, `js/landmarks.js`, `js/actors.js` – houses, street furniture, church, the player's minifig, the traffic
 - `tools/` – data converters (OSGB grid conversion, shapefile and GeoTIFF readers), dev server

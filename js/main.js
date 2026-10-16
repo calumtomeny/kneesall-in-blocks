@@ -6,8 +6,8 @@ import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { buildWorld, studGeometry, studTexture, Builder, World, BRICK, PLATE, PAL, col, rng, F_NOCOLLIDE } from './bricks.js';
 import { buildKneesall, groundMeshes } from './osm.js';
-import { polyCells, centroid, pointAlong, distToPolyline, pointInPoly } from './geo.js';
-import { makeMinifig, animateMinifig } from './actors.js';
+import { polyCells, centroid, pointAlong, polylineLength, distToPolyline, pointInPoly } from './geo.js';
+import { makeMinifig, animateMinifig, makeCar, makeMixer } from './actors.js';
 
 const $ = (id) => document.getElementById(id);
 const status = (t) => { $('loading-text').textContent = t; };
@@ -120,6 +120,8 @@ function showToast(t) { const e = $('toast'); e.textContent = t; e.classList.add
 
 // ------------------------------------------------------------------ build the village
 let K, G, W, BOUNDS, studChunks = [], brickChunks = [], dynamic = { clouds: [] };
+const traffic = { L: 0, cars: [], idle: [], next: [1, 3], mixerAt: -60 };
+window.__dbg.traffic = traffic;   // traffic.spawn(dir, t) adds a vehicle
 const groundStuds = new Map();
 const stud = { hi: studGeometry(10, true), lo: studGeometry(6, false) };
 
@@ -209,6 +211,13 @@ async function build() {
 
   status('Adding clouds…'); await nextFrame();
   addClouds();
+  traffic.L = K.carPath.length > 1 ? polylineLength(K.carPath) : 0;
+  traffic.spawn = spawnVehicle;
+  // a few vehicles already on the road when the tour starts
+  for (const dir of [1, -1]) for (let k = 0; k < 2; k++) if (traffic.L) {
+    spawnVehicle(dir, 0); const c = traffic.cars[traffic.cars.length - 1];
+    c.s = traffic.L * (0.15 + k * 0.4 + Math.random() * 0.25); if (dir < 0) c.s = traffic.L - c.s;
+  }
   buildMinimap();
   placePlayerAtStart();
 }
@@ -413,6 +422,69 @@ function addClocks(world, parent) {
     const mn = new THREE.Mesh(new THREE.BoxGeometry(0.09, 1.15, 0.05), hm); mn.geometry.translate(0, 0.52, 0);
     hands.add(hr, mn); parent.add(hands);
     dynamic.clock = { hr, mn };
+  }
+}
+
+// ------------------------------------------------------------------ traffic on Newark Road (A616)
+// Cars come in at either end of the baseplate, drive through on the left at 30 mph and leave at the other end; every
+// now and again one of them is a cement mixer. The vehicles are made up: nobody counted the A616's traffic.
+const MPH = 0.44704 / 0.7;   // studs per second
+const CAR_COLOURS = [PAL.red, PAL.blue, PAL.white, PAL.black, PAL.lbg, PAL.dbg, PAL.darkBlue, PAL.white, PAL.darkRed, PAL.lbg, PAL.darkGreen, PAL.yellow];
+function spawnVehicle(dir, t) {
+  const mixer = !traffic.cars.some(c => c.mixer) && (t - traffic.mixerAt > 150 || (t - traffic.mixerAt > 40 && Math.random() < 0.1));
+  const kind = mixer ? 'mixer' : Math.random() < 0.18 ? 'van' : 'hatch';
+  let i = traffic.idle.findIndex(v => v.kind === kind && (mixer || Math.random() < 0.5));
+  let v;
+  if (i >= 0) v = traffic.idle.splice(i, 1)[0];
+  else {
+    const hex = kind === 'van' ? (Math.random() < 0.6 ? PAL.white : PAL.lbg) : CAR_COLOURS[Math.floor(Math.random() * CAR_COLOURS.length)];
+    v = { kind, obj: mixer ? makeMixer() : makeCar(hex, kind) };
+  }
+  if (mixer) traffic.mixerAt = t;
+  Object.assign(v, { dir, mixer, s: dir > 0 ? 0 : traffic.L, speed: (mixer ? 27 : 28 + Math.random() * 5) * MPH });
+  v.v = v.speed; v.obj.visible = true;
+  scene.add(v.obj); traffic.cars.push(v);
+}
+
+function updateTraffic(dt, t) {
+  const path = K.carPath, L = traffic.L;
+  if (!L) return;
+  for (const dir of [1, -1]) {
+    const k = dir > 0 ? 0 : 1;
+    if (t < traffic.next[k]) continue;
+    // keep a gap behind the last vehicle to come in
+    const clear = traffic.cars.every(c => c.dir !== dir || (dir > 0 ? c.s : L - c.s) > 30);
+    if (clear) spawnVehicle(dir, t);
+    traffic.next[k] = t + (clear ? 4 + -Math.log(1 - Math.random()) * 9 : 1);
+  }
+  const p = player.pos;
+  for (const c of traffic.cars) {
+    const q = pointAlong(path, c.s), a = pointAlong(path, c.s - 3 * c.dir), b = pointAlong(path, c.s + 3 * c.dir);
+    let tx = b.x - a.x, tz = b.z - a.z; const tl = Math.hypot(tx, tz) || 1; tx /= tl; tz /= tl;   // smoothed heading
+    // slow down for the player standing in the lane ahead, or for the vehicle in front
+    let target = c.speed;
+    const half = c.obj.userData.L / 2;
+    const vx = p.x - q.x, vz = p.z - q.z, ahead = vx * tx + vz * tz - half, lateral = vx * tz - vz * tx;
+    if (lateral > -1.5 && lateral < 6 && ahead > -half && ahead < 30 && p.y - K.roadY(p.x, p.z) < 3) target = ahead < 4 ? 0 : c.speed * Math.min(1, (ahead - 4) / 20);
+    for (const o of traffic.cars) if (o !== c && o.dir === c.dir) {
+      const g = (o.s - c.s) * c.dir - (o.obj.userData.L + c.obj.userData.L) / 2;
+      if (g > -1 && g < 20) target = Math.min(target, Math.max(0, o.v * (g - 4) / 10));
+    }
+    c.v += (target - c.v) * Math.min(1, dt * (target < c.v ? 5 : 0.8));
+    c.s += c.dir * c.v * dt;
+    // drive on the left: offset to the left of the direction of travel
+    const px = q.x + tz * 2.6, pz = q.z - tx * 2.6;
+    const y0 = K.roadY(px - tx * half, pz - tz * half), y1 = K.roadY(px + tx * half, pz + tz * half);
+    c.obj.position.set(px, (y0 + y1) / 2, pz);
+    c.obj.rotation.set(0, Math.atan2(-tz, tx), Math.atan2(y1 - y0, half * 2), 'YZX');
+    const r = c.obj.userData.r;
+    for (const w of c.obj.userData.wheels) w.rotation.z -= c.v * dt / r;
+    if (c.obj.userData.drum) c.obj.userData.drum.rotation.x += dt * 1.6;
+  }
+  // gone off the end of the baseplate
+  for (let i = traffic.cars.length - 1; i >= 0; i--) {
+    const c = traffic.cars[i];
+    if (c.s < -2 || c.s > L + 2) { scene.remove(c.obj); traffic.idle.push(c); traffic.cars.splice(i, 1); }
   }
 }
 
@@ -640,6 +712,7 @@ function updateWorld(dt, t) {
     const d = new Date(); const h = d.getHours() % 12 + d.getMinutes() / 60, m = d.getMinutes() + d.getSeconds() / 60;
     dynamic.clock.hr.rotation.z = -h / 12 * Math.PI * 2; dynamic.clock.mn.rotation.z = -m / 60 * Math.PI * 2;
   }
+  updateTraffic(dt, t);
   updateShadows(t);
   // brick level of detail: bevelled bricks near the camera, plain faces further off
   for (const c of brickChunks) {
