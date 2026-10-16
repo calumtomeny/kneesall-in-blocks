@@ -53,7 +53,7 @@ OS OpenMap Local outlines are generalised: some miss whole wings or sit a metre 
 two off. Each surveyed building is a set of rectangles in British National Grid metres (in a local grid rotated to
 the building), each with eaves and ridge heights and a gable, lean-to or hipped roof, plus wall and roof
 materials, chimney positions and the side the door faces (and, where seen, door and window positions along it, a
-porch, `garages` doors and `blank` sides, as in `details` below; `frontAt`, a point on the front wall, picks it out
+porch, `garages` doors, `blank` sides and `frameColour`/`doorColour`, as in `details` below; `frontAt`, a point on the front wall, picks it out
 where a lower range has the longer wall on that side). Houses built after the LIDAR survey, such as
 those in Fortune Close, are measured from aerial photographs instead: the satellite image leans tall things about
 0.4 m north for every metre of height (measured on the church tower), so roof outlines are read on a grid shifted
@@ -89,6 +89,8 @@ of the road it joins, and the painted `triangle` where there is one.
 `barriers` say what Street View shows of the gates OpenStreetMap maps on roads and paths (by node id): galvanised, timber
 or weathered, how many leaves, and the compass direction they stand open towards. Gates nobody has looked at are a
 closed plain timber gate; where OSM gives a `maxheight` there is a lattice height bar over the way.
+`trees` are trees the LIDAR doesn't have (planted or grown since, or on ground cleared when it was flown), and
+`notTrees` are LIDAR "trees" the aerial photograph shows to be roofs, chimneys or building edges.
 
 ## Regenerating `data/`
 

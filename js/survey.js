@@ -23,7 +23,7 @@ export function surveyedBuildings(survey, bng) {
     const P = partsBuilding(framer(bng, s.frame), s.parts, {
       wall: MATERIALS[s.wall] ?? MATERIALS.redBrick, roof: MATERIALS[s.roof] ?? MATERIALS.slate, label: s.label,
       windows: s.windows, doorDir: SIDES[s.door] ?? SIDES.n, chimneys: s.chimneys ?? [], frontWindows: s.frontWindows, doorAt: s.doorAt,
-      solar: s.solar, canopy: s.porch, frame: PAL[s.frame], door: PAL[s.doorColour],
+      solar: s.solar, canopy: s.porch, frame: PAL[s.frameColour], door: PAL[s.doorColour],
       garages: s.garages?.map(([f, c, n]) => [f, MATERIALS[c] ?? PAL[c] ?? PAL.white, n]),
       frontAt: s.frontAt,
       blank: s.blank?.map(v => { const f = (typeof v === 'number' ? v : { n: 0, e: 90, s: 180, w: 270 }[v]) * Math.PI / 180; return [Math.sin(f), -Math.cos(f)]; }),

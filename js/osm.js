@@ -334,14 +334,19 @@ export function buildKneesall(data) {
   const hedgeMask = new Uint8Array(G.n * G.n);
   if (lidar) {
     const nearTree = new Uint8Array(G.n * G.n);
-    for (const t of data.trees) {
+    // LIDAR "trees" the aerial photograph shows to be roofs, chimneys or building edges (survey.json "notTrees")
+    const notTrees = (data.survey?.notTrees ?? []).map(n => project(n.at));
+    // and trees the LIDAR doesn't have, seen since (survey.json "trees")
+    const handTrees = (data.survey?.trees ?? []).map(t => { const [x, z] = project(t.at); return { ...t, x, z }; });
+    for (const t of [...data.trees, ...handTrees]) {
       const x = Math.floor(t.x), z = Math.floor(t.z);
       if (!inBounds(x, z, 4) || G.has(x, z, 1 | 64 | 8)) continue;
+      if (notTrees.some(([nx, nz]) => Math.hypot(nx - t.x, nz - t.z) < 2)) continue;
       const r = Math.max(2.5, Math.min(7, t.r / mps * 0.9));
       // evergreens (the laser couldn't get through the crown in the leafless survey, tools/tree_kinds.py) are dark and
       // dense; the narrow ones, whose canopy falls away fast from the top, are conifers with a cone of a crown
       const ev = (t.ev ?? 0) > 0.5, conifer = ev && t.h / Math.max(1, t.r) >= 4.5, tall = t.h / (BRICK * mps);
-      const trunk = Math.max(conifer ? 2 : 3, Math.min(9, Math.round(tall * (conifer ? 0.15 : 0.4))));
+      const trunk = t.bush ? 1 : Math.max(conifer ? 2 : 3, Math.min(9, Math.round(tall * (conifer ? 0.15 : 0.4))));   // a bush is leafy to the ground
       tree(W, x, z, { r: conifer ? Math.max(2, r * 0.8) : r, trunk, cone: conifer ? Math.round(tall * 0.8) : 0,
         greens: ev ? [PAL.darkGreen, PAL.darkGreen, PAL.darkGreen, PAL.green] : undefined });
       const rr = Math.ceil(r);
