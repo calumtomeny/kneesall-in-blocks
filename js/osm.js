@@ -20,7 +20,7 @@ import { polyCells, pointInPoly, lineCells, distToPolyline, polylineLength, poin
 const ROAD = {
   primary: { hw: 5, col: PAL.dbg, pave: true, dash: true },
   secondary: { hw: 4.5, col: PAL.dbg, pave: true },
-  tertiary: { hw: 4, col: PAL.dbg, pave: true },
+  tertiary: { hw: 4, col: PAL.dbg, pave: true, dash: true },   // Ossington Road has a dashed centre line (Street View)
   unclassified: { hw: 4, col: PAL.dbg, pave: true },
   residential: { hw: 4, col: PAL.dbg, pave: true },
   service: { hw: 2.5, col: PAL.dbg },
