@@ -264,6 +264,7 @@ export function buildKneesall(data, opts = {}) {
         if (seen.storeys) o.floors = seen.storeys;
         if (seen.porch) o.canopy = seen.porch;
         if (seen.gablets) o.gablets = seen.gablets;
+        if (seen.parts) o.partWalls = seen.parts.map(([la, lo, wall]) => [project([la, lo]), wall]);
       }
       // LIDAR: storeys from roof height, roof form from the surface model (h is 0 for buildings newer than the survey)
       if (b.h > 0 && !seen?.storeys && !o.label?.startsWith('Kneesall CofE')) {
@@ -550,8 +551,9 @@ export function buildKneesall(data, opts = {}) {
     if (l.kind === 'hedge') lineCells(l.pts, 0.75, (x, z) => { if (!G.has(x, z, 1 | 64 | 8) && inBounds(x, z, 1)) { W.set(x, 0, z, PAL.darkGreen, F_PLAIN); W.set(x, 1, z, R() < 0.1 ? PAL.green : PAL.darkGreen, F_PLAIN); if (!lidar && R() < 0.02) tree(W, x, z, { r: 3.5 + R() * 2 }); } });
     if (l.kind === 'fence') lineCells(l.pts, 0.6, (x, z) => { if (!G.has(x, z, 1 | 2)) { W.set(x, 0, z, PAL.reddishBrown); W.set(x, 1, z, PAL.reddishBrown, F_TILE); } });
   }
-  // garden and boundary walls seen in Street View and aerial photographs (survey.json "walls"): brick or stone
-  // to their height, a coping tile on top, and piers a brick taller every `piers` metres
+  // garden and boundary walls seen in Street View and aerial photographs (survey.json "walls"): brick, stone or
+  // (a colour name such as brown) timber fencing to their height, a coping tile on top, and piers a brick taller
+  // every `piers` metres
   // A wall along a mapped road (`osm` way id, `side` left/right of its direction, `from`/`to` points) follows the
   // road between those points at the back of its pavement (or verge edge), or `offset` metres from its centre line.
   const alongRoad = (w) => {
@@ -567,7 +569,7 @@ export function buildKneesall(data, opts = {}) {
   for (const w of data.survey?.walls ?? []) {
     const pts = w.osm ? alongRoad(w) : w.pts.map(project), n = Math.max(1, Math.round(w.h * KWALL));
     if (pts.length < 2) continue;
-    const c = MATERIALS[w.wall] ?? MATERIALS.redBrick, cap = MATERIALS[w.cap] ?? PAL[w.cap] ?? PAL.lbg;
+    const c = MATERIALS[w.wall] ?? PAL[w.wall] ?? MATERIALS.redBrick, cap = MATERIALS[w.cap] ?? PAL[w.cap] ?? PAL.lbg;
     const piers = new Set();
     if (w.piers) for (let s = 0, L = polylineLength(pts); s <= L; s += w.piers / mps) { const p = pointAlong(pts, Math.min(s, L - 0.01)); piers.add(Math.floor(p.x) + ',' + Math.floor(p.z)); }
     lineCells(pts, 0.5, (x, z) => {

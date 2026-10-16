@@ -33,7 +33,18 @@ export function surveyedBuildings(survey, bng) {
 // o.chimneyAlong (fractions along the main ridge, left to right as seen from the front) replaces measured chimneys.
 export function fittedBuilding(fit, bng, o, front) {
   const chimneys = o.chimneyAlong ? alongRidge(fit, o.chimneyAlong, front) : o.chimneys === 0 ? [] : fit.chimneys;
-  const parts = o.gablets ? [...fit.parts, ...gablets(fit, o.gablets, front)] : fit.parts;
+  let parts = o.gablets ? [...fit.parts, ...gablets(fit, o.gablets, front)] : fit.parts;
+  // o.partWalls: [[x, z] world studs, material] gives the part under that point its own walls (a rendered house
+  // joined to a brick barn, say)
+  if (o.partWalls) {
+    const at = framer(bng, fit.frame), [x0, z0] = at(0, 0), [x1, z1] = at(1, 0), [x2, z2] = at(0, 1);
+    const a = x1 - x0, b = x2 - x0, c = z1 - z0, d = z2 - z0, det = a * d - b * c;
+    const uw = ([x, z]) => [(d * (x - x0) - b * (z - z0)) / det, (-c * (x - x0) + a * (z - z0)) / det];
+    parts = parts.map(p => {
+      const hit = o.partWalls.find(([xz]) => { const [u, w] = uw(xz); return u >= p.u[0] && u <= p.u[1] && w >= p.w[0] && w <= p.w[1]; });
+      return hit ? { ...p, wall: hit[1] } : p;
+    });
+  }
   return partsBuilding(framer(bng, fit.frame), parts, { ...o, chimneys, front });
 }
 
