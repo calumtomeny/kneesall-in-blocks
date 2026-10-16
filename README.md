@@ -64,8 +64,8 @@ its `at` point, and every entry says where it was seen.
 OpenStreetMap way id (`osm`), the `side` of it and `from`/`to` points, and stands at the back of the modelled pavement;
 any other wall is a list of points. The 1 m LIDAR does not show walls this low, so they come from Street View.
 `signs` are the road signs seen in Street View where roads enter the village (the pictorial village sign, name
-plates and speed limits) and at junctions (Give Way, direction flags, the end of a goods-vehicle restriction, a crossroads
-warning), each placed by a road the same way (on the verge, `against` a wall at the back of the pavement, or
+plates and speed limits) and at junctions and bends (Give Way, direction flags, the end of a goods-vehicle restriction, crossroads
+warnings, bend chevrons, the Rajdhaani's roadside board), each placed by a road the same way (on the verge, `against` a wall at the back of the pavement, or
 `offset` metres from the centre line) and turned to face compass direction `face`. `lamps` are street lights
 located from Street View bearings (a grey `column` with an outreach arm, or a `swan`-neck), at the kerb edge of the
 pavement or on the verge (`back`: at the back of the pavement), the arm reaching over the road.

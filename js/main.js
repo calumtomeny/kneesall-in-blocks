@@ -253,6 +253,27 @@ function signCanvas(s) {
     });
     return { cv, shape: true };
   }
+  if (s.style === 'chevron') {
+    // bend chevrons: white arrowheads on black pointing the way the road turns (`text` "<" or ">")
+    x.fillStyle = '#111'; x.fillRect(0, 0, pxW, pxH);
+    const n = 2, dir = s.text === '<' ? -1 : 1, cw = pxW / n;
+    x.fillStyle = '#f4f4f0';
+    for (let i = 0; i < n; i++) {
+      const c0 = cw * i + cw * 0.5, a = cw * 0.22, b = cw * 0.14;
+      x.beginPath(); x.moveTo(c0 - dir * a, pxH * 0.1); x.lineTo(c0 - dir * a + dir * b, pxH * 0.1); x.lineTo(c0 + dir * a + dir * b, pxH * 0.5);
+      x.lineTo(c0 - dir * a + dir * b, pxH * 0.9); x.lineTo(c0 - dir * a, pxH * 0.9); x.lineTo(c0 + dir * a, pxH * 0.5); x.closePath(); x.fill();
+    }
+    return { cv };
+  }
+  if (s.style === 'advert') {
+    // a painted roadside board: the restaurant's name over its directions
+    const [name, ...rest] = s.text.split('|');
+    x.fillStyle = '#d9cf8f'; x.fillRect(0, 0, pxW, pxH);
+    x.strokeStyle = '#8a5a2b'; x.lineWidth = 8; x.strokeRect(10, 10, pxW - 20, pxH - 20);
+    x.fillStyle = '#7a1f2a'; x.font = 'bold ' + pxH * 0.16 + 'px Georgia, serif'; x.fillText(name, pxW / 2, pxH * 0.38);
+    x.font = 'bold ' + pxH * 0.08 + 'px Arial, sans-serif'; rest.forEach((t, i) => x.fillText(t, pxW / 2, pxH * (0.66 + i * 0.12)));
+    return { cv };
+  }
   if (s.style === 'village') {
     // Kneesall's pictorial village sign: a painted oval (fields, sky and the church tower) over the name
     x.fillStyle = '#1b2a1f'; x.fillRect(0, 0, pxW, pxH);
