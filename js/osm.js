@@ -7,7 +7,7 @@
 // Hand-surveyed (data/survey.json): a few buildings measured from LIDAR and photographs, replacing OS outlines.
 // From Historic England listings: Old Hall, Old Hall Cottage and the war memorial.
 // From the Rural Payments Agency's Crop Map of England (CROME): the crop in each field.
-// Invented: wall brick shades, and (only without OS data) extra houses along unmapped roads.
+// Invented: wall brick shades, street lamp positions, and (only without OS data) extra houses along unmapped roads.
 import * as THREE from 'three';
 import { World, Builder, PAL, BRICK, PLATE, F_TILE, F_HIDDEN, F_NOCOLLIDE, F_PLAIN, col, rng } from './bricks.js';
 import { R, pick, tree, conifer, hedge, lamp, postBox, bench, sign } from './parts.js';

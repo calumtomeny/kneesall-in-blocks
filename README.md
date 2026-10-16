@@ -24,7 +24,8 @@ Add `?infill=1` to the URL to add generic houses along roads that have no mapped
 | Hand-surveyed buildings, walls, doors, windows, chimneys, labels (`data/survey.json`) | Measured from the LIDAR; observed in Street View and aerial photographs (Oct 2026) and recorded by hand | — |
 
 Invented: the shade of brick on houses nobody has looked at, window and door positions
-on walls not seen from a road, and the optional infill houses.
+on walls not seen from a road, where the street lamps stand (one every 24 m: none are mapped), the cars and
+people, and the optional infill houses.
 
 ### Roof materials
 
