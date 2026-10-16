@@ -13,7 +13,7 @@ python3 tools/serve.py        # then open http://localhost:8765
 | Roads, names, church/restaurant/school/café, churchyard, hedges, woods, streams, poles, bus stops, gates and kissing gates | OpenStreetMap (Overpass API) | ODbL — © OpenStreetMap contributors |
 | Pavements (which side of each road) | OpenStreetMap `sidewalk` tags; Street View for the roads without them (`roads` in `data/survey.json`) | ODbL / — |
 | Building outlines | Ordnance Survey OpenMap – Local (`SK_Building`, `SK_ImportantBuilding`) | OGL v3 — contains OS data © Crown copyright and database right |
-| Terrain, building and roof shapes (stud by stud), trees, hedgerows | Environment Agency LIDAR Composite DTM, First Return and Last Return DSM, 1 m | OGL v3 — © Environment Agency |
+| Terrain, building and roof shapes (stud by stud), trees (evergreen or deciduous), hedgerows | Environment Agency LIDAR Composite DTM, First Return and Last Return DSM, 1 m | OGL v3 — © Environment Agency |
 | Roof materials (slate, brown tile, pantile, sheeting, felt) | Environment Agency National LIDAR Programme intensity, 2022 | OGL v3 — © Environment Agency |
 | Old Hall, Old Hall Cottage, war memorial positions; the church's doors, windows and pinnacles | Historic England listings (via Wikipedia; the church's from the Southwell & Nottingham Church History Project) | — |
 | Building shapes as clean parts (every building) | Fitted to the LIDAR by `tools/fit_buildings.py` | as above |
@@ -116,7 +116,12 @@ closed plain timber gate; where OSM gives a `maxheight` there is a lattice heigh
 
 7. `python3 tools/crome.py data/kneesall.json` (CROME crop hexagons; fetched once into `data/crome-raw.json`)
 
-Steps 4–7 add to the JSON written by step 1, so run them in that order.
+8. `python3 tools/tree_kinds.py data/kneesall.json --dtm dtm.tif --dsm dsm.tif --dsm-last dsm_last.tif --bbox 469880 363760 470880 364760`
+   (marks each tree evergreen or deciduous: the survey was flown with the leaves off, so the last return goes down
+   through a deciduous crown but stops near the top of a yew, holly or conifer. Evergreens are drawn dark and dense,
+   the narrow ones as conifers)
+
+Steps 4–8 add to the JSON written by step 1, so run them in that order.
 
 ## Code
 

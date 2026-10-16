@@ -338,8 +338,12 @@ export function buildKneesall(data) {
       const x = Math.floor(t.x), z = Math.floor(t.z);
       if (!inBounds(x, z, 4) || G.has(x, z, 1 | 64 | 8)) continue;
       const r = Math.max(2.5, Math.min(7, t.r / mps * 0.9));
-      const trunk = Math.max(3, Math.min(9, Math.round(t.h / (BRICK * mps) * 0.4)));
-      tree(W, x, z, { r, trunk });
+      // evergreens (the laser couldn't get through the crown in the leafless survey, tools/tree_kinds.py) are dark and
+      // dense; the narrow ones, whose canopy falls away fast from the top, are conifers with a cone of a crown
+      const ev = (t.ev ?? 0) > 0.5, conifer = ev && t.h / Math.max(1, t.r) >= 4.5, tall = t.h / (BRICK * mps);
+      const trunk = Math.max(conifer ? 2 : 3, Math.min(9, Math.round(tall * (conifer ? 0.15 : 0.4))));
+      tree(W, x, z, { r: conifer ? Math.max(2, r * 0.8) : r, trunk, cone: conifer ? Math.round(tall * 0.8) : 0,
+        greens: ev ? [PAL.darkGreen, PAL.darkGreen, PAL.darkGreen, PAL.green] : undefined });
       const rr = Math.ceil(r);
       for (let dz = -rr; dz <= rr; dz++) for (let dx = -rr; dx <= rr; dx++) if (dx * dx + dz * dz <= r * r) { const i = G.i(x + dx, z + dz); if (i >= 0) nearTree[i] = 1; }
     }

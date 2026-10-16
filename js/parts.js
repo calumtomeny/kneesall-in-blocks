@@ -188,10 +188,12 @@ export function tree(W, x, z, o = {}) {
     const g = new THREE.CylinderGeometry(0.48, 0.55, h * BRICK, 12);
     at(x, z).geom(g, new THREE.Matrix4().makeTranslation(x + 0.5, h * BRICK / 2, z + 0.5), col(PAL.reddishBrown));
   });
-  const cy = h + r * 0.55, ry = r * 0.75;
+  // the crown: an ellipsoid, or for a conifer (o.cone: its height in bricks) a cone from the top of the trunk
+  const cone = o.cone, cy = cone ? h : h + r * 0.55, ry = cone ? cone : r * 0.75;
   const R2 = Math.ceil(r);
-  const inside = (dx, dy, dz) => (dx * dx + dz * dz) / (r * r) + (dy * dy) / (ry * ry) <= 1;
-  for (let dy = -Math.ceil(ry); dy <= Math.ceil(ry); dy++) for (let dz = -R2; dz <= R2; dz++) for (let dx = -R2; dx <= R2; dx++) {
+  const inside = cone ? (dx, dy, dz) => dy >= 0 && dy <= cone && Math.hypot(dx, dz) <= Math.max(0.6, r * (1 - dy / cone))
+    : (dx, dy, dz) => (dx * dx + dz * dz) / (r * r) + (dy * dy) / (ry * ry) <= 1;
+  for (let dy = cone ? 0 : -Math.ceil(ry); dy <= Math.ceil(ry); dy++) for (let dz = -R2; dz <= R2; dz++) for (let dx = -R2; dx <= R2; dx++) {
     if (!inside(dx, dy, dz)) continue;
     const shell = !inside(dx + 1, dy, dz) || !inside(dx - 1, dy, dz) || !inside(dx, dy + 1, dz) || !inside(dx, dy - 1, dz) || !inside(dx, dy, dz + 1) || !inside(dx, dy, dz - 1);
     if (!shell && !(dx === 0 && dz === 0)) continue;
