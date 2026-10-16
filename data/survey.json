@@ -226,7 +226,7 @@
     {"at": [53.172457, -0.94953], "roof": "brownTile", "storeys": 1, "notes": "Red-brick bungalow", "source": "Street View (imagery as served 2026-10-15)"},
     {"at": [53.172497, -0.946984], "roof": "pantile", "front": "s", "chimneys": [0.5], "notes": "Semis with central stack and tiled porch canopy", "source": "Street View (imagery as served 2026-10-15); aerial photograph (Google, imagery 2026) for the solar panels", "solar": {"face": 180, "span": [0.55, 0.8]}},
     {"at": [53.172128, -0.946583], "roof": "brownTile", "storeys": 1, "notes": "Bungalow, white fascia", "source": "Street View (imagery as served 2026-10-15)"},
-    {"at": [53.172556, -0.946056], "roof": "brownTile", "wall": "redBrick", "front": 177, "doors": [0.6], "windows": [2, 3], "porch": "lean", "frame": "white", "door": "dbg", "notes": "Modern detached house, glazed front gable, attached double garage with grey doors, porch canopy on pillars", "source": "Street View (imagery as served 2026-10-15, 2026-10-16)"},
+    {"at": [53.172556, -0.946056], "roof": "brownTile", "wall": "redBrick", "front": 177, "doors": [0.6], "windows": [2, 3], "porch": "lean", "frame": "white", "door": "dbg", "notes": "Modern detached house, glazed front gable, attached double garage with grey doors, porch canopy on pillars", "source": "Street View (imagery as served 2026-10-15, 2026-10-16)", "garages": [[0.12, "dbg"], [0.32, "dbg"]]},
     {
       "at": [53.173277, -0.950935],
       "roof": "concreteTile",
@@ -252,7 +252,8 @@
       "chimneys": [0.1],
       "frame": "white",
       "door": "white",
-      "notes": "1970s detached red-brick house on Baulk Lane, white door at the north end, integral garage with a white door, stack on the north gable"
+      "notes": "1970s detached red-brick house on Baulk Lane, white door at the north end, integral garage with a white door, stack on the north gable",
+      "garages": [[0.75, "white"]]
     },
     {
       "at": [53.172868, -0.950532],
@@ -287,9 +288,10 @@
       "wall": "redBrick",
       "porch": "gable",
       "frame": "white",
-      "door": "white"
+      "door": "white",
+      "garages": [[0.12, "darkBlue"]]
     },
-    {"at": [53.1724, -0.950265], "roof": "concreteTile", "wall": "redBrick", "front": 74, "doors": [0.53], "windows": [2, 3], "chimneys": [0.44], "porch": "gable", "frame": "white", "door": "white", "notes": "1970s detached red-brick house on Baulk Lane, bay window, white door under a small gabled porch, attached garage with a beige door", "source": "Street View from Baulk Lane (older imagery, as served 2026-10-16)"},
+    {"at": [53.1724, -0.950265], "roof": "concreteTile", "wall": "redBrick", "front": 74, "doors": [0.53], "windows": [2, 3], "chimneys": [0.44], "porch": "gable", "frame": "white", "door": "white", "notes": "1970s detached red-brick house on Baulk Lane, bay window, white door under a small gabled porch, attached garage with a beige door", "source": "Street View from Baulk Lane (older imagery, as served 2026-10-16)", "garages": [[0.85, "tan"]]},
     {"at": [53.17156, -0.950103], "roof": "brownTile", "wall": "redBrick", "front": 291, "doors": [0.5], "windows": [3, 3], "chimneys": [0.86], "porch": "lean", "frame": "white", "notes": "Two-storey detached house, integral garage with a white door, tiled lean-to porch roof across the front, ivy; rubble-stone garden wall to the road", "source": "aerial photograph (Google, imagery 2026) for the roof; Street View from Sington Road (imagery as served 2026-10-15)"},
     {"at": [53.171682, -0.949693], "roof": "slate", "source": "aerial photograph (Google, imagery 2026)"},
     {"at": [53.17061, -0.94885], "roof": "slate", "source": "aerial photograph (Google, imagery 2026)"},

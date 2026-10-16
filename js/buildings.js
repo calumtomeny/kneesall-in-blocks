@@ -2,7 +2,7 @@
 // Each building is built axis-aligned in its own local voxel World and then rotated into place,
 // so walls stay straight even when the real building sits at an angle.
 import { World, PAL, F_TILE, F_NOCOLLIDE } from './bricks.js';
-import { R, pick, house, windowIn, doorIn, chimney, sign } from './parts.js';
+import { R, pick, house, windowIn, doorIn, garageDoorIn, chimney, sign } from './parts.js';
 import { churchBuilding } from './landmarks.js';
 import { polyCells, dominantAngle, centroid } from './geo.js';
 import { roofPlan } from './roofs.js';
@@ -271,16 +271,33 @@ export function lidarBuilding(W, { cells, top, roofCol, wallCol }, o = {}) {
     for (let a = r.start + 2; a + 2 <= r.end - 1; a += 4) slots.push(a);
     let doors = r === doorRun ? [slots[Math.floor(slots.length / 2)]] : [];
     let upper = slots;
+    // garage doors seen on the front ([fraction, colour, 2 for a double]), clear of the ground-floor windows and door
+    const garages = r === doorRun && o.garages ? o.garages.map(([f, c, n]) => {
+      const w = n === 2 ? 7 : 4, s = slotAt(r, f);
+      return { a0: Math.max(r.start, Math.min(r.end - w + 1, s + 1 - (w >> 1))), w, c };
+    }) : [];
+    const inGarage = (a) => garages.some(g => a + 1 >= g.a0 - 1 && a <= g.a0 + g.w);
     // the surveyed front: doors where they were seen, and that many windows on each floor, evenly spaced
     if (r === doorRun && o.doorAt) doors = o.doorAt.map(f => slotAt(r, f));
+    doors = doors.filter(d => d === undefined || !inGarage(d));
     if (r === doorRun && o.frontWindows) {
       const even = (n) => Array.from({ length: n }, (_, k) => slotAt(r, (k + 0.5) / n));
       const [g, u] = o.frontWindows;
       slots = even(g).filter(a => doors.every(d => Math.abs(a - d) >= 3)); upper = even(u);
+      if (garages.length) {
+        // the ground-floor windows share out what the garage doors leave of the front
+        const free = [];
+        for (let a = r.start; a < r.end; a++) if (!inGarage(a) && doors.every(d => Math.abs(a - d) >= 3)) free.push(a);
+        slots = Array.from({ length: g }, (_, k) => free[Math.floor((k + 0.5) / g * free.length)]).filter(a => a !== undefined);
+      }
     }
     if (o.windows !== false) for (let f = 0; f < 3; f++) for (const a of f === 0 ? slots : upper) {
-      if ((f === 0 && doors.includes(a)) || !tallAt(r, a, f * 6 + 4)) continue;
+      if ((f === 0 && (doors.includes(a) || inGarage(a))) || !tallAt(r, a, f * 6 + 4)) continue;
       windowIn(W, axis, r.fixed, a, 2, f * 6 + 2, 3, { frame: o.frame, lintel: o.lintel });
+    }
+    for (const g of garages) {
+      let ok = true; for (let a = g.a0; a + 1 < g.a0 + g.w; a++) ok &&= tallAt(r, a, 5);
+      if (ok) garageDoorIn(W, axis, r.fixed, g.a0, g.w, 5, { color: g.c, frame: o.frame });
     }
     for (const doorSlot of doors) {
       if (doorSlot === undefined) continue;

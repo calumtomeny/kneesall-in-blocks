@@ -66,6 +66,24 @@ export function doorIn(W, axis, fixed, a0, w, h, o = {}) {
   });
 }
 
+// An up-and-over garage door w studs wide and h bricks tall: a frame and a ribbed panel, flush with the wall
+export function garageDoorIn(W, axis, fixed, a0, w, h, o = {}) {
+  const c = o.color ?? PAL.white;
+  for (let a = a0; a < a0 + w; a++) for (let y = 0; y < h; y++) {
+    if (axis === 'x') W.set(a, y, fixed, c, F_HIDDEN); else W.set(fixed, y, a, c, F_HIDDEN);
+  }
+  const Y1 = h * BRICK, A1 = a0 + w;
+  W.extras.push(({ at }) => {
+    const b = axis === 'x' ? at(a0, fixed) : at(fixed, a0);
+    const fr = col(o.frame ?? PAL.white), op = { chamfer: 0.02, gap: 0.004 };
+    b.box(...wb(axis, fixed, a0, a0 + 0.2, 0, Y1, 0.2, 0.85), fr, op);
+    b.box(...wb(axis, fixed, A1 - 0.2, A1, 0, Y1, 0.2, 0.85), fr, op);
+    b.box(...wb(axis, fixed, a0, A1, Y1 - 0.25, Y1, 0.2, 0.85), fr, op);
+    b.box(...wb(axis, fixed, a0 + 0.2, A1 - 0.2, 0, Y1 - 0.25, 0.45, 0.6), col(c), { chamfer: 0.02, gap: 0.004 });
+    for (let y = 0.6; y < Y1 - 0.5; y += 0.7) b.box(...wb(axis, fixed, a0 + 0.3, A1 - 0.3, y, y + 0.12, 0.38, 0.67), col(c), { chamfer: 0.01, gap: 0 });
+  });
+}
+
 // --------------------------------------------------------------- house
 // x0,z0 = min corner; w along x, d along z (d even); front = 'n'|'s' (door side facing road)
 export function house(W, o) {
