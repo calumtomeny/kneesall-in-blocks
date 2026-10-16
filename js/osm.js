@@ -15,6 +15,7 @@ import { warMemorial, headstone } from './landmarks.js';
 import { buildingFromPolygon, buildingFromRect, churchFromPolygon, houseStyle, STYLES, MATERIALS, roofMaterial } from './buildings.js';
 import { surveyedBuildings, surveyedChurch, surveyGrounds, surveyRoads, fittedBuilding } from './survey.js';
 import { KWALL } from './roofs.js';
+import { cropLook, foliage, hedgeColours } from './seasons.js';
 import { polyCells, pointInPoly, lineCells, distToPolyline, polylineLength, pointAlong, chainPolylines, ribbonY, dashesY, centroid, polyArea } from './geo.js';
 
 const ROAD = {
@@ -61,6 +62,8 @@ export class Ground {
 }
 
 export function buildKneesall(data) {
+  // the month the village is shown in (data.month, or this month): crops, leaves and hedges follow it
+  const month = data.month ?? new Date().getMonth() + 1, leaves = foliage(month), [hedgeC, hedgeAlt] = hedgeColours(month);
   const half = data.half;
   const G = new Ground(half);
   const W = new World();
@@ -348,7 +351,7 @@ export function buildKneesall(data) {
       const ev = (t.ev ?? 0) > 0.5, conifer = ev && t.h / Math.max(1, t.r) >= 4.5, tall = t.h / (BRICK * mps);
       const trunk = t.bush ? 1 : Math.max(conifer ? 2 : 3, Math.min(9, Math.round(tall * (conifer ? 0.15 : 0.4))));   // a bush is leafy to the ground
       tree(W, x, z, { r: conifer ? Math.max(2, r * 0.8) : r, trunk, cone: conifer ? Math.round(tall * 0.8) : 0,
-        greens: ev ? [PAL.darkGreen, PAL.darkGreen, PAL.darkGreen, PAL.green] : undefined });
+        greens: ev ? [PAL.darkGreen, PAL.darkGreen, PAL.darkGreen, PAL.green] : leaves.greens, keep: ev ? 1 : leaves.keep });
       const rr = Math.ceil(r);
       for (let dz = -rr; dz <= rr; dz++) for (let dx = -rr; dx <= rr; dx++) if (dx * dx + dz * dz <= r * r) { const i = G.i(x + dx, z + dz); if (i >= 0) nearTree[i] = 1; }
     }
@@ -359,22 +362,12 @@ export function buildKneesall(data) {
       if ((G.occ[i] & 2) && Math.hypot(x, z + 40) < VILLAGE_R + 40) continue;   // keep pavements clear
       if (h > 4.5) { hedgeMask[i] = 2; continue; }   // tall vegetation without a detected trunk: leave as a barrier only
       hedgeMask[i] = 1;
-      W.set(x, 0, z, (x * 3 + z * 5) % 23 === 0 ? PAL.green : PAL.darkGreen, F_PLAIN);
-      if (h > 1.7) W.set(x, 1, z, (x + z) % 17 === 0 ? PAL.olive : PAL.darkGreen, F_PLAIN);
+      W.set(x, 0, z, (x * 3 + z * 5) % 23 === 0 ? hedgeAlt : hedgeC, F_PLAIN);
+      if (h > 1.7) W.set(x, 1, z, (x + z) % 17 === 0 ? hedgeAlt : hedgeC, F_PLAIN);
     }
   }
 
   // ------------------------------------------------------------ farmland: fields bounded by real hedges, roads and streams
-  const CROPS = {
-    wheat: { c: PAL.tan, top: PLATE, alt: PAL.darkTan },
-    barley: { c: PAL.darkTan, top: PLATE, alt: PAL.tan },
-    oats: { c: PAL.tan, top: PLATE, alt: PAL.olive },
-    maize: { c: PAL.darkGreen, top: PLATE, alt: PAL.green },
-    beans: { c: PAL.olive, top: PLATE, alt: PAL.darkGreen },
-    beet: { c: PAL.green, top: PLATE, alt: PAL.darkGreen },
-    rape: { c: PAL.yellow, top: PLATE, alt: PAL.brightLightYellow },
-    grass: { c: PAL.green, top: 0, alt: PAL.lime },
-  };
   // Crop Map of England (CROME) land-use codes -> crops; trees and hedges (WO12) don't vote, and "non-vegetated or
   // sparsely vegetated land" (NA01) round here is gardens and grounds, so grass like the pasture
   const CROME = { AC66: 'wheat', AC32: 'wheat', AC25: 'wheat', AC01: 'barley', AC63: 'barley', AC19: 'oats', AC65: 'oats', AC17: 'maize',
@@ -442,7 +435,7 @@ export function buildKneesall(data) {
     if (c0 < 0 || sizes[c0] < 300) continue;
     const f = fieldCrop.get(c0);
     // the blend changes slowly, so it is worked out on a 4-stud lattice
-    const C = CROPS[!f ? 'grass' : f.mixed ? blended((x & ~3) + 2, (z & ~3) + 2, f.main) : f.main];
+    const C = cropLook(!f ? 'grass' : f.mixed ? blended((x & ~3) + 2, (z & ~3) + 2, f.main) : f.main, month);
     G.set(x, z, ((x * 7 + z * 13) % 11 === 0 && Math.abs(x) + Math.abs(z) < 260) ? C.alt : C.c, C.top, 1);
   }
 
@@ -557,7 +550,7 @@ export function buildKneesall(data) {
 
   // ------------------------------------------------------------ hedges, fences, roadside hedges in the countryside
   for (const l of data.lines) {
-    if (l.kind === 'hedge') lineCells(l.pts, 0.75, (x, z) => { if (!G.has(x, z, 1 | 64 | 8) && inBounds(x, z, 1)) { W.set(x, 0, z, PAL.darkGreen, F_PLAIN); W.set(x, 1, z, R() < 0.1 ? PAL.green : PAL.darkGreen, F_PLAIN); if (!lidar && R() < 0.02) tree(W, x, z, { r: 3.5 + R() * 2 }); } });
+    if (l.kind === 'hedge') lineCells(l.pts, 0.75, (x, z) => { if (!G.has(x, z, 1 | 64 | 8) && inBounds(x, z, 1)) { W.set(x, 0, z, hedgeC, F_PLAIN); W.set(x, 1, z, R() < 0.1 ? hedgeAlt : hedgeC, F_PLAIN); if (!lidar && R() < 0.02) tree(W, x, z, { r: 3.5 + R() * 2 }); } });
     if (l.kind === 'fence') lineCells(l.pts, 0.6, (x, z) => { if (!G.has(x, z, 1 | 2)) { W.set(x, 0, z, PAL.reddishBrown); W.set(x, 1, z, PAL.reddishBrown, F_TILE); } });
   }
   // garden and boundary walls seen in Street View and aerial photographs (survey.json "walls"): brick, stone or

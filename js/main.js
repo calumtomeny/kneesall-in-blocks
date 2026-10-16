@@ -8,6 +8,7 @@ import { buildWorld, studGeometry, studTexture, Builder, World, BRICK, PLATE, PA
 import { buildKneesall, groundMeshes } from './osm.js';
 import { polyCells, centroid, pointAlong, polylineLength, distToPolyline, pointInPoly } from './geo.js';
 import { makeMinifig, animateMinifig, makeCar, makeMixer } from './actors.js';
+import { MONTHS } from './seasons.js';
 
 const $ = (id) => document.getElementById(id);
 const status = (t) => { $('loading-text').textContent = t; };
@@ -119,7 +120,7 @@ let toastTimer = 0;
 function showToast(t) { const e = $('toast'); e.textContent = t; e.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => e.classList.remove('show'), 1800); }
 
 // ------------------------------------------------------------------ build the village
-let K, G, W, BOUNDS, studChunks = [], brickChunks = [], dynamic = { clouds: [] };
+let K, G, W, BOUNDS, MONTH, studChunks = [], brickChunks = [], dynamic = { clouds: [] };
 const traffic = { L: 0, cars: [], idle: [], next: [1, 3], mixerAt: -60 };
 window.__dbg.traffic = traffic;   // traffic.spawn(dir, t) adds a vehicle
 const groundStuds = new Map();
@@ -165,6 +166,9 @@ async function build() {
   if (data.roofs) data.roofsArr = new Uint8Array(await (await fetch('data/' + data.roofs.file)).arrayBuffer());
   // optional hand-surveyed buildings
   try { const r = await fetch('data/survey.json'); if (r.ok) data.survey = await r.json(); } catch (e) { /* none */ }
+  // the month to show (?month=1..12, else this month): crops, leaves and hedges follow the year
+  const qm = +new URLSearchParams(location.search).get('month');
+  MONTH = qm >= 1 && qm <= 12 ? qm : new Date().getMonth() + 1; data.month = MONTH;
   if (data.attribution) $('osm').innerHTML = data.attribution.replace('OpenStreetMap contributors', '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors');
   status('Laying baseplates…'); await nextFrame();
   let t0 = performance.now();
@@ -220,6 +224,12 @@ async function build() {
   }
   buildMinimap();
   placePlayerAtStart();
+  // back where you were before Y changed the month
+  try {
+    const r = JSON.parse(sessionStorage.getItem('kneesall-resume') ?? 'null');
+    sessionStorage.removeItem('kneesall-resume');
+    if (r) { player.pos.fromArray(r.p); Object.assign(player, { yaw: r.yaw, pitch: r.pitch, fly: r.fly, third: r.third }); timeIdx = r.time; }
+  } catch (e) { /* storage unavailable: start at the usual place */ }
 }
 
 function signCanvas(s) {
@@ -606,6 +616,11 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyV') { player.third = !player.third; showToast(player.third ? 'Third person' : 'First person'); }
   if (e.code === 'KeyF') { player.fly = !player.fly; player.vy = 0; showToast(player.fly ? 'Fly mode (Space up, C down)' : 'Walking'); }
   if (e.code === 'KeyT') { timeIdx = (timeIdx + 1) % TIMES.length; applyTime(); }
+  if (e.code === 'KeyY') {
+    // the next month: the village is rebuilt for it (a reload), and you come back where you were
+    try { sessionStorage.setItem('kneesall-resume', JSON.stringify({ p: player.pos.toArray(), yaw: player.yaw, pitch: player.pitch, fly: player.fly, third: player.third, time: timeIdx })); } catch (e) { /* no storage */ }
+    const q = new URLSearchParams(location.search); q.set('month', MONTH % 12 + 1); location.search = q;
+  }
   if (e.code === 'KeyM') $('minimap').classList.toggle('hidden');
   if (e.code === 'KeyO') { aoOn = !aoOn; showToast(aoOn ? 'Ambient occlusion on' : 'Ambient occlusion off'); }
   if (e.code === 'KeyH') $('help').classList.toggle('hidden');
@@ -901,7 +916,7 @@ function loop(now) {
     scene.add(avatar);
     applyTime();
     setupPost();
-    status('Ready');
+    status('Ready: ' + MONTHS[MONTH - 1] + (MONTH === new Date().getMonth() + 1 ? ' (this month)' : ''));
     $('start').disabled = false; $('start').textContent = 'Enter Kneesall';
     requestAnimationFrame(loop);
   } catch (e) {

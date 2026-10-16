@@ -198,6 +198,7 @@ export function tree(W, x, z, o = {}) {
     const shell = !inside(dx + 1, dy, dz) || !inside(dx - 1, dy, dz) || !inside(dx, dy + 1, dz) || !inside(dx, dy - 1, dz) || !inside(dx, dy, dz + 1) || !inside(dx, dy, dz - 1);
     if (!shell && !(dx === 0 && dz === 0)) continue;
     if (shell && R() < 0.12 && dy > -ry + 1) continue; // ragged edge
+    if (o.keep < 1 && !(dx === 0 && dz === 0) && R() > o.keep) continue;   // thin crowns: spring, autumn, bare winter twigs
     const y = Math.round(cy + dy); if (y < 2) continue;
     if (!W.has(x + dx, y, z + dz)) W.set(x + dx, y, z + dz, dy > ry * 0.3 && R() < 0.5 ? greens[0] : pick(greens), F_NOCOLLIDE | F_PLAIN);
   }

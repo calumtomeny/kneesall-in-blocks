@@ -28,6 +28,15 @@ drawn), and the parked cars, people and animals. The one exception is the traffi
 made-up cars, vans and now and then a cement mixer drive through on the left at about 30 mph, and stop for you
 if you stand in the road.
 
+### The year
+
+The village is shown in the current month (or `?month=1`…`12`; <kbd>Y</kbd> steps on a month, rebuilding the village
+where you stand). Each field follows the usual farming calendar for its CROME crop: winter wheat and barley green
+through the winter, ripe in July (barley first) and stubble after harvest; oilseed rape yellow in April and May;
+spring beans, maize and beet on bare soil until they come up. These are typical East Midlands dates, not records of
+these fields. Deciduous trees are bare from December to March, fresh in April and turn in October and November;
+the evergreens (see `tools/tree_kinds.py`) stay as they are. `js/seasons.js` holds the calendars.
+
 ### Roof materials
 
 The laser in an aerial LIDAR survey records how strongly each roof reflects it. Slate and grey tiles return
