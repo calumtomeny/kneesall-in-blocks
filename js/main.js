@@ -10,6 +10,7 @@ import { polyCells, centroid, pointAlong, polylineLength, distToPolyline, pointI
 import { makeMinifig, animateMinifig, makeCar, makeMixer } from './actors.js';
 import { MONTHS } from './seasons.js';
 import { KWALL } from './roofs.js';
+import { Soundscape } from './sound.js';
 
 const $ = (id) => document.getElementById(id);
 const status = (t) => { $('loading-text').textContent = t; };
@@ -53,10 +54,10 @@ const pmrem = new THREE.PMREMGenerator(renderer);
 let envRT = null;
 
 const TIMES = [
-  { name: 'Morning', elev: 16, az: 115, sunCol: 0xffe2b8, sunI: 2.6, hemiI: 0.45, fog: 0xd8dde4, exp: 0.8 },
-  { name: 'Midday', elev: 48, az: 170, sunCol: 0xfff6e8, sunI: 3.2, hemiI: 0.55, fog: 0xc9d9e8, exp: 0.78 },
-  { name: 'Late afternoon', elev: 24, az: 235, sunCol: 0xffe7c4, sunI: 2.9, hemiI: 0.5, fog: 0xd3dbe2, exp: 0.82 },
-  { name: 'Golden hour', elev: 5, az: 268, sunCol: 0xffad5c, sunI: 2.2, hemiI: 0.35, fog: 0xe6c7a8, exp: 0.95 },
+  { name: 'Morning', hour: 8, elev: 16, az: 115, sunCol: 0xffe2b8, sunI: 2.6, hemiI: 0.45, fog: 0xd8dde4, exp: 0.8 },
+  { name: 'Midday', hour: 12.5, elev: 48, az: 170, sunCol: 0xfff6e8, sunI: 3.2, hemiI: 0.55, fog: 0xc9d9e8, exp: 0.78 },
+  { name: 'Late afternoon', hour: 16.5, elev: 24, az: 235, sunCol: 0xffe7c4, sunI: 2.9, hemiI: 0.5, fog: 0xd3dbe2, exp: 0.82 },
+  { name: 'Golden hour', hour: 19.5, elev: 5, az: 268, sunCol: 0xffad5c, sunI: 2.2, hemiI: 0.35, fog: 0xe6c7a8, exp: 0.95 },
   { name: 'Now', now: true },
 ];
 let timeIdx = 2, timeAt = 0;
@@ -128,7 +129,7 @@ let toastTimer = 0;
 function showToast(t) { const e = $('toast'); e.textContent = t; e.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => e.classList.remove('show'), 1800); }
 
 // ------------------------------------------------------------------ build the village
-let K, G, W, BOUNDS, MONTH, studChunks = [], brickChunks = [], dynamic = { clouds: [] };
+let K, G, W, BOUNDS, MONTH, treeXZ = [], studChunks = [], brickChunks = [], dynamic = { clouds: [] };
 const traffic = { L: 0, cars: [], idle: [], next: [1, 3], mixerAt: -60 };
 window.__dbg.traffic = traffic;   // traffic.spawn(dir, t) adds a vehicle
 const groundStuds = new Map();
@@ -181,6 +182,7 @@ async function build() {
   status('Laying baseplates…'); await nextFrame();
   let t0 = performance.now();
   K = buildKneesall(data);
+  treeXZ = (data.trees ?? []).map(t => [t.x, t.z]);
   G = K.G; W = K.W; Object.assign(window.__dbg, { K, brickChunks, studChunks });
   BOUNDS = { x0: -G.half, x1: G.half - 1, z0: -G.half, z1: G.half - 1 };
   console.log('osm', (performance.now() - t0) | 0, 'ms', K.buildings.length, 'buildings'); t0 = performance.now();
@@ -701,6 +703,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyF') { player.fly = !player.fly; player.vy = 0; showToast(player.fly ? 'Fly mode (Space up, C down)' : 'Walking'); }
   if (e.code === 'KeyT') { timeIdx = (timeIdx + 1) % TIMES.length; applyTime(); }
   if (e.code === 'KeyR') { weatherIdx = (weatherIdx + 1) % WEATHERS.length; applyWeather(); }
+  if (e.code === 'KeyN') { sound.start(); showToast(sound.toggle() ? 'Sound on' : 'Sound off'); }
   if (e.code === 'KeyY') {
     // the next month: the village is rebuilt for it (a reload), and you come back where you were
     try { sessionStorage.setItem('kneesall-resume', JSON.stringify({ p: player.pos.toArray(), yaw: player.yaw, pitch: player.pitch, fly: player.fly, third: player.third, time: timeIdx })); } catch (e) { /* no storage */ }
@@ -972,6 +975,22 @@ addEventListener('resize', () => {
   if (composer) composer.setSize(innerWidth, innerHeight);
 });
 
+// ------------------------------------------------------------------ sound
+const sound = new Soundscape();
+window.__dbg.sound = sound;
+let soundPrev = null, treesNear = 0, treesAt = 0;
+function updateSound(dt, now) {
+  const p = player.pos;
+  // how wooded it is about you (for the birds), looked at twice a second
+  if (now - treesAt > 500) { treesAt = now; let n = 0; for (const [x, z] of treeXZ) if (Math.abs(x - p.x) < 30 && Math.abs(z - p.z) < 30) n++; treesNear = Math.min(1, n / 8); }
+  const moved = soundPrev && player.onGround && !player.fly ? Math.hypot(p.x - soundPrev.x, p.z - soundPrev.z) : 0;
+  soundPrev = { x: p.x, z: p.z };
+  const t = TIMES[timeIdx], d = new Date();
+  sound.update(dt, { x: camera.position.x, z: camera.position.z, yaw: player.yaw, cars: traffic.cars, weather, month: MONTH,
+    hour: t.now ? d.getHours() + d.getMinutes() / 60 : t.hour, trees: treesNear, step: moved < 2 ? moved : 0,
+    hard: G.has(Math.floor(p.x), Math.floor(p.z), 2) });
+}
+
 // ------------------------------------------------------------------ main loop
 let fpsN = 0, fpsT = 0;
 let started = false, last = performance.now(), frames = 0, perfT = 0, perfChecked = false;
@@ -985,6 +1004,7 @@ function loop(now) {
   // the composer is only needed for ambient occlusion; without it, straight to the screen
   if (composer && aoOn) composer.render(); else renderer.render(scene, camera);
   drawMinimap(); updatePlace();
+  if (started) updateSound(dt, now);
   // adaptive quality: if the first few seconds are slow, drop AO and resolution
   if (!perfChecked && started) {
     frames++; perfT += dt;
@@ -1019,6 +1039,7 @@ function loop(now) {
 })();
 $('start').addEventListener('click', () => {
   started = true; last = performance.now();
+  sound.start();
   $('intro').classList.add('hidden');
   lockPointer();
 });

@@ -47,6 +47,15 @@ how hazy the distance is; rain and snow fall round you and close the view in; th
 <kbd>R</kbd> steps through live, fair, overcast and rain. Without a connection it stays fair. Weather data by
 Open-Meteo.com, CC BY 4.0.
 
+### Sound
+
+Everything you hear is synthesised in the browser (no recordings), and follows what the model is doing: the engines
+and tyres of the traffic on Newark Road, placed left or right, fading with distance and dropping in pitch as they
+pass; wind and rain from the live weather; birdsong, busiest at the dawn chorus and in spring, hushed by rain and at
+night, and more of it among trees; and your footsteps, crisp on roads and pavements and soft on grass. St
+Bartholomew's clock is electric (1963) and nothing says it strikes, so it is silent. <kbd>N</kbd> turns the sound
+off and on.
+
 ### Roof materials
 
 The laser in an aerial LIDAR survey records how strongly each roof reflects it. Slate and grey tiles return
