@@ -50,7 +50,7 @@ export class Ground {
     this.base = new Float32Array(n * n);   // terrain height (whole plates)
     this.top = new Float32Array(n * n);    // walkable surface height
     this.stud = new Uint8Array(n * n).fill(1);
-    this.occ = new Uint8Array(n * n);   // 1 building, 2 road+verge, 4 area, 8 water, 16 village, 32 blocked-for-infill, 64 carriageway
+    this.occ = new Uint8Array(n * n);   // 1 building, 2 road+verge, 4 area, 8 water, 16 village, 32 blocked-for-infill, 64 carriageway, 128 steps
   }
   i(x, z) { x += this.half; z += this.half; return (x < 0 || z < 0 || x >= this.n || z >= this.n) ? -1 : z * this.n + x; }
   set(x, z, c, top = 0, stud = 1) { const i = this.i(x, z); if (i < 0) return; this.col[i] = c; this.top[i] = this.base[i] + top; this.stud[i] = stud; }
@@ -325,6 +325,11 @@ export function buildKneesall(data) {
   for (const c of kerbCorners) { if (c.pave) polyCells(c.pave, (x, z) => G.flag(x, z, 2)); polyCells(c.fill, (x, z) => G.flag(x, z, 2 | 64)); }
   for (const l of data.lines) if (l.kind === 'ditch' || l.kind === 'stream') lineCells(l.pts, l.kind === 'stream' ? 1.6 : 1.0, (x, z) => G.flag(x, z, 8));
 
+  // surveyed yards, drives and paving (survey.json "grounds"): known to be clear, so no LIDAR hedge is grown on them
+  const grounds = survey ? surveyGrounds(survey, data.bng) : [];
+  const clearGround = new Uint8Array(G.n * G.n);
+  for (const g of grounds) polyCells(g.poly, (x, z) => { const i = G.i(x, z); if (i >= 0) clearGround[i] = 1; });
+
   // ------------------------------------------------------------ LIDAR trees and hedgerows
   const hedgeMask = new Uint8Array(G.n * G.n);
   if (lidar) {
@@ -341,7 +346,7 @@ export function buildKneesall(data) {
     // low vegetation (1–4.5 m) that isn't under a tree crown = hedges and shrubs
     for (let z = -half; z < half; z++) for (let x = -half; x < half; x++) {
       const i = G.i(x, z), h = ndsm(x, z);
-      if (h < 1.0 || nearTree[i] || (G.occ[i] & (1 | 64 | 8))) continue;
+      if (h < 1.0 || nearTree[i] || clearGround[i] || (G.occ[i] & (1 | 64 | 8))) continue;
       if ((G.occ[i] & 2) && Math.hypot(x, z + 40) < VILLAGE_R + 40) continue;   // keep pavements clear
       if (h > 4.5) { hedgeMask[i] = 2; continue; }   // tall vegetation without a detected trunk: leave as a barrier only
       hedgeMask[i] = 1;
@@ -448,9 +453,14 @@ export function buildKneesall(data) {
   }
 
   // ------------------------------------------------------------ surveyed yards and drives
-  for (const g of survey ? surveyGrounds(survey, data.bng) : []) {
+  for (const g of grounds) {
     const c = { gravel: PAL.darkTan, tarmac: PAL.dbg, paving: PAL.lbg, grass: PAL.green }[g.surface] ?? PAL.darkTan;
-    polyCells(g.poly, (x, z) => { if (!G.has(x, z, 1)) G.set(x, z, c, 0, g.surface === 'gravel' || g.surface === 'grass' ? 1 : 0); });
+    polyCells(g.poly, (x, z) => {
+      if (G.has(x, z, 1 | 2 | 64)) return;
+      G.set(x, z, c, 0, g.surface === 'gravel' || g.surface === 'grass' ? 1 : 0);
+      // paving and tarmac lie smooth at pavement height rather than in steps of a plate
+      if (g.surface === 'paving' || g.surface === 'tarmac') G.top[G.i(x, z)] = terrainY(x + 0.5, z + 0.5) + PAVE_TOP;
+    });
   }
 
   // ------------------------------------------------------------ water
@@ -569,6 +579,69 @@ export function buildKneesall(data) {
       W.set(x, n + (pier ? 1 : 0), z, cap, F_TILE);
     });
   }
+  // gateways seen in Street View (survey.json "gates"): an opening `width` metres wide through the wall at `at`, a stone
+  // pier either side, steps up to the ground inside, an iron gate standing open against the inside of one pier and a
+  // pointed iron arch of three hoops over the steps. `face` is the compass direction out through the gate.
+  for (const g of data.survey?.gates ?? []) {
+    const [gx, gz] = project(g.at), F = g.face * Math.PI / 180;
+    const fx = Math.sin(F), fz = -Math.cos(F), ax = -fz, az = fx, half = g.width / mps / 2;
+    const cell = (a, o) => [Math.floor(gx + ax * a + fx * o), Math.floor(gz + az * a + fz * o)];
+    const local = (x, z) => { const dx = x + 0.5 - gx, dz = z + 0.5 - gz; return [dx * ax + dz * az, dx * fx + dz * fz]; };
+    // the ground just outside (the pavement) and well inside, which the steps climb between
+    const lo = terrainY(gx + fx * 2, gz + fz * 2) + PAVE_TOP, hi = Math.max(lo + 0.4, G.heightAt(gx - fx * 3.5, gz - fz * 3.5));
+    // clear the opening and lay the steps: stone treads from the wall line inward. The LIDAR takes the iron arch for
+    // low growth, so no hedge is left just inside either.
+    for (let z = Math.floor(gz - 7); z <= gz + 7; z++) for (let x = Math.floor(gx - 7); x <= gx + 7; x++) {
+      const [a, o] = local(x, z);
+      if (o < -4.5 || o > 1.5 || Math.abs(a) > half + (o < -0.6 ? 1.5 : 0)) continue;
+      for (let y = 0; y < 8; y++) if (Math.abs(a) <= half || (W.get(x, y, z) & F_PLAIN)) W.del(x, y, z);
+      if (Math.abs(a) > half || o < -3) continue;
+      const i = G.i(x, z); if (i < 0 || o > 0.5) continue;
+      const k = Math.min(3, Math.floor((0.5 - o) / 0.8) + 1);
+      G.set(x, z, PAL.lbg, 0, 0); G.top[i] = lo + (hi - lo) * k / 3; G.occ[i] &= ~2; G.flag(x, z, 32 | 128);
+    }
+    // piers a brick taller than the wall beside them
+    let wallH = 2;
+    for (const s of [-1, 1]) {
+      const [px, pz] = cell(s * (half + 0.5), 0);
+      for (let y = 0; y < 8; y++) if (W.has(px, y, pz)) wallH = Math.max(wallH, y);
+    }
+    for (const s of [-1, 1]) {
+      const [px, pz] = cell(s * (half + 0.5), 0);
+      for (let y = 0; y <= wallH; y++) W.set(px, y, pz, MATERIALS.stone);
+      W.set(px, wallH + 1, pz, MATERIALS.stone, F_TILE);
+    }
+    const [cx, cz] = [Math.floor(gx), Math.floor(gz)], B = G.baseAt(cx, cz), iron = col(PAL.black);
+    W.extras.push(({ at }) => {
+      const b = at(cx, cz);
+      // a point `a` along the wall, `o` out from it (inside is negative), `y` up from the base under the gate
+      const P = (a, o, y) => new THREE.Vector3(gx + ax * a + fx * o, y, gz + az * a + fz * o);
+      const rod = (p, q, r = 0.05) => {
+        const d = q.clone().sub(p), m = new THREE.Matrix4().compose(p.clone().add(q).multiplyScalar(0.5), new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize()), new THREE.Vector3(1, 1, 1));
+        b.geom(new THREE.CylinderGeometry(r, r, d.length(), 6, 1), m, iron);
+      };
+      // the gate: hinged on the pier on the left as seen from outside (+a), swung in against the side of the steps
+      const g0 = lo - B + (hi - lo) / 3, gh = 2.6, gl = 2 * half - 0.2, ga = half - 0.1;
+      for (const y of [g0 + 0.25, g0 + gh]) rod(P(ga, -0.15, y), P(ga, -0.15 - gl, y), 0.06);
+      for (let t = 0; t <= 1.001; t += 1 / 6) rod(P(ga, -0.15 - gl * t, g0 + 0.1), P(ga, -0.15 - gl * t, g0 + gh + 0.15), 0.04);
+      // the arch: three lancet hoops over the top of the steps, joined by rungs up each side
+      const foot = hi - B, leg = 4.6, rise = 3.0, s = half + 0.15;
+      const hoop = (o) => {
+        const pts = [];
+        for (let t = 0; t <= 1.001; t += 0.25) pts.push(P(-s, o, foot + leg * t));
+        // each side a circular arc (centre 0.5 s across, stretched upward) meeting the other at the apex
+        const c = 0.5 * s, R = s + c, th = Math.acos(c / R), k = rise / (R * Math.sin(th));
+        for (let i = 1; i <= 8; i++) { const q = th * i / 8; pts.push(P(c - R * Math.cos(q), o, foot + leg + k * R * Math.sin(q))); }
+        for (let i = 7; i >= 1; i--) { const q = th * i / 8; pts.push(P(-(c - R * Math.cos(q)), o, foot + leg + k * R * Math.sin(q))); }
+        for (let t = 1; t >= -0.001; t -= 0.25) pts.push(P(s, o, foot + leg * t));
+        b.geom(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.1), 48, 0.07, 6), new THREE.Matrix4(), iron);
+      };
+      const hoops = [-0.6, -1.4, -2.2];
+      hoops.forEach(hoop);
+      for (const side of [-1, 1]) for (const y of [1.2, 2.4, 3.6, 4.6]) rod(P(side * s, hoops[0], foot + y), P(side * s, hoops[2], foot + y));
+    });
+  }
+
   if (!lidar) for (const r of carRoads) lineCells(r.pts, r.spec.hw + 2.2, (x, z, d) => {
     if (d > r.spec.hw + 1.2 && !G.has(x, z, 16 | 64 | 1 | 8) && inBounds(x, z, 1) && ((x * 7 + z * 3) % 41) > 2) { W.set(x, 0, z, PAL.darkGreen, F_PLAIN); W.set(x, 1, z, PAL.darkGreen, F_PLAIN); }
   });
@@ -580,8 +653,8 @@ export function buildKneesall(data) {
     warMemorial(W, Math.floor(mx), Math.floor(mz));
     let n = 0;
     polyCells(a.pts, (x, z) => {
-      if (G.has(x, z, 1 | 2) || W.has(x, 0, z)) return;
-      for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) if (G.has(x + dx, z + dz, 1 | 2)) return;
+      if (G.has(x, z, 1 | 2 | 128) || W.has(x, 0, z)) return;
+      for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) if (G.has(x + dx, z + dz, 1 | 2 | 128)) return;
       if ((x % 4 === 0) && (z % 5 === 0) && R() < 0.4) { headstone(W, x, z); n++; }
     });
   }

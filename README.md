@@ -67,6 +67,9 @@ describes, spaced evenly along each wall.
 `walls` are garden and boundary walls (height, brick or stone, coping, piers). A wall along a road gives the road's
 OpenStreetMap way id (`osm`), the `side` of it and `from`/`to` points, and stands at the back of the modelled pavement;
 any other wall is a list of points. The 1 m LIDAR does not show walls this low, so they come from Street View.
+`gates` are gateways through those walls (`at`, the compass `face` out through them, the opening's `width`): stone
+piers, steps up to the ground inside, the iron gate and its arch, as at the churchyard gate on Newark Road. Yards and
+paving in `grounds` are kept clear of hedges, since the LIDAR's low growth there is walls, benches and what stood on them.
 `signs` are the road signs seen in Street View where roads enter the village (the pictorial village sign, name
 plates and speed limits) and at junctions and bends (Give Way, direction flags, the end of a goods-vehicle restriction, crossroads
 warnings, bend chevrons, the Rajdhaani's roadside board), each placed by a road the same way (on the verge, `against` a wall at the back of the pavement, or
