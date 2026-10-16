@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "kneesall", "runtimeExecutable": "python3", "runtimeArgs": ["/home/calum/repos/kneesall-tour/tools/serve.py"], "port": 8765, "autoPort": true }
+  ]
+}

@@ -1,0 +1,353 @@
+{
+  "about": "Buildings measured by hand. Each replaces any Ordnance Survey outline it overlaps. Parts are rectangles in metres in a local grid: origin (E, N) on the British National Grid, u along `bearing` (degrees clockwise from grid north), w at right angles to the left of u. Heights are metres above the ground: `eaves` where the roof starts, `top` the ridge. Roof types: gable (ridge runs `along` u or w), lean (falls towards the `low` side: u0, u1, w0 or w1), hip. `door` is the side the main door faces (n = +w, s = -w, e = +u, w = -u). Materials: see MATERIALS in js/buildings.js. `details` record what was seen of a building (matched by the point `at`, lat/lon, inside its outline): wall/roof/groundWall/plinth materials, `front` (compass side facing the road, letter or degrees), `doors` and `chimneys` as fractions 0..1 left to right as seen from the front (chimneys along the main ridge), `windows` [ground, upper] counts on the front, `storeys`, `label`. `roads` entries with `osm` (an OpenStreetMap way id) set `sidewalk` (both/left/right/no, sides relative to the way's direction) where OSM has no sidewalk tag. `lidarBuildings` are garages and sheds that the Ordnance Survey outlines miss: each `at` point picks a building-shaped blob of the LIDAR, confirmed on an aerial photograph, which tools/fit_buildings.py measures like any other building.",
+  "buildings": [
+    {
+      "name": "Old Hall Cottage",
+      "label": "Old Hall Cottage",
+      "notes": "Grade II, early 19th-century estate cottage. Two storeys of red brick under a hipped pantile roof with a central stack, single-storey lean-to wings either side. The front (to Newark Road) has two white sashes per floor and blind recesses in the middle, and no door.",
+      "sources": "Historic England listing (via Wikipedia); EA LIDAR 2022 last return and intensity; Street View from Newark Road, checked 2026-10-15",
+      "frame": {"E": 470310.55, "N": 364246.85, "bearing": 115.7},
+      "wall": "redBrick",
+      "roof": "pantile",
+      "door": "n",
+      "parts": [
+        {"u": [-3.8, 3.8], "w": [-4.6, 5.0], "roof": "hip", "eaves": 5.2, "top": 7.2},
+        {"u": [-6.5, -3.8], "w": [-4.6, 1.5], "roof": "lean", "low": "u0", "eaves": 2.6, "top": 4.4},
+        {"u": [3.8, 6.5], "w": [-4.6, 1.5], "roof": "lean", "low": "u1", "eaves": 2.6, "top": 4.4}
+      ],
+      "chimneys": [[0, -1.5]]
+    },
+    {
+      "name": "Rendered house and brick range, Newark Road",
+      "notes": "Two-storey house in weathered cream render with a brick stack at its north-west end, joined to a long single-storey red-brick range along the road (blank wall, small door) and a rear wing; pantiles throughout.",
+      "sources": "EA LIDAR 2022 (fit_buildings.py parts); NLP intensity (pantile); Street View from Newark Road, checked 2026-10-15",
+      "frame": {"E": 470356.67, "N": 364193.12, "bearing": 112.9},
+      "wall": "redBrick",
+      "roof": "pantile",
+      "door": "n",
+      "parts": [
+        {"u": [-14.0, -1.5], "w": [1.5, 6.0], "roof": "hip", "eaves": 5.6, "top": 7.2, "wall": "creamRender"},
+        {"u": [-1.5, 4.5], "w": [-12.5, 1.5], "roof": "gable", "along": "w", "eaves": 2.9, "top": 5.2},
+        {"u": [-1.5, 4.5], "w": [1.5, 5.5], "roof": "lean", "low": "u1", "eaves": 3.3, "top": 6.2},
+        {"u": [4.5, 14.5], "w": [2.0, 5.5], "roof": "lean", "low": "w1", "eaves": 3.2, "top": 4.7}
+      ],
+      "chimneys": [[-13.0, 3.75]]
+    },
+    {
+      "name": "Barn range off Eakring Road",
+      "notes": "U-shaped range of red-brick barns under pantiles, open to the south, the north range in three heights. The OS outline lacks the west wing.",
+      "sources": "EA LIDAR 2022 first and last return (shape, heights) and intensity (pantile); aerial photography, checked 2026-10-15",
+      "frame": {"E": 470282, "N": 364163, "bearing": 100.9},
+      "wall": "redBrick",
+      "roof": "pantile",
+      "door": "s",
+      "parts": [
+        {"u": [1.4, 8.6], "w": [-2.6, 3.6], "roof": "gable", "along": "u", "eaves": 3.0, "top": 5.0},
+        {"u": [8.6, 18.6], "w": [-2.6, 3.6], "roof": "gable", "along": "u", "eaves": 3.7, "top": 6.1},
+        {"u": [18.6, 23.6], "w": [-2.6, 3.6], "roof": "gable", "along": "u", "eaves": 2.4, "top": 4.7},
+        {"u": [1.4, 5.7], "w": [-10.4, -2.6], "roof": "gable", "along": "w", "eaves": 2.3, "top": 4.0},
+        {"u": [19.0, 26.5], "w": [-12.8, -2.6], "roof": "gable", "along": "w", "eaves": 2.3, "top": 4.9}
+      ],
+      "chimneys": []
+    },
+    {
+      "name": "Slate-roofed house off Eakring Road",
+      "notes": "Two-storey red-brick house under slate with a stack on the north gable, an outshut along the east side and a single-storey extension to the south.",
+      "sources": "EA LIDAR 2022 first and last return (shape, heights) and intensity (slate); aerial photography, checked 2026-10-15",
+      "frame": {"E": 470282, "N": 364163, "bearing": 100.9},
+      "wall": "redBrick",
+      "roof": "slate",
+      "door": "e",
+      "parts": [
+        {"u": [0.3, 4.9], "w": [-26.6, -17.3], "roof": "gable", "along": "w", "eaves": 4.8, "top": 7.3},
+        {"u": [4.9, 9.3], "w": [-26.6, -17.6], "roof": "lean", "low": "u1", "eaves": 3.6, "top": 4.8},
+        {"u": [2.5, 9.3], "w": [-31.3, -26.6], "roof": "hip", "eaves": 2.6, "top": 4.4}
+      ],
+      "chimneys": [[2.6, -17.3]]
+    },
+    {
+      "name": "Pantiled outbuilding off Eakring Road",
+      "notes": "Single-storey red-brick outbuilding under orange pantiles, facing the yard to the west.",
+      "sources": "EA LIDAR 2022; NLP intensity (pantile); aerial photography, checked 2026-10-15",
+      "frame": {"E": 470282, "N": 364163, "bearing": 100.9},
+      "wall": "redBrick",
+      "roof": "pantile",
+      "door": "w",
+      "windows": false,
+      "parts": [
+        {"u": [18.6, 22.6], "w": [-31.6, -18.4], "roof": "gable", "along": "w", "eaves": 2.2, "top": 3.9}
+      ],
+      "chimneys": []
+    },
+    {"name": "New house at the corner of Ossington Road and School Lane", "notes": "Built after the 2022 LIDAR survey and missing from the OS outlines. Large hipped roof with roof lights and solar panels on the west slope. The outline is measured from the aerial photograph; the heights are assumed (rooms in the roof, so a low eaves line), as Street View predates the house.", "sources": "aerial photograph (Google, imagery 2026), measured 2026-10-15", "frame": {"E": 470529.57, "N": 364410.23, "bearing": 89.2}, "wall": "redBrick", "roof": "brownTile", "door": "e", "parts": [{"u": [-6.7, 8.0], "w": [-8.0, 6.6], "roof": "hip", "eaves": 3.0, "top": 7.0}, {"u": [-3.1, 1.1], "w": [6.6, 8.6], "roof": "hip", "eaves": 3.0, "top": 4.5}], "chimneys": [], "solar": {"face": 270, "span": [0.25, 0.75]}}
+  ],
+  "grounds": [
+    {
+      "notes": "Gravel yard between the barns, the house and the outbuilding",
+      "sources": "aerial photography, checked 2026-10-15",
+      "frame": {"E": 470282, "N": 364163, "bearing": 100.9},
+      "surface": "gravel",
+      "poly": [[-2, -10.8], [19.0, -10.8], [19.0, -12.8], [27.0, -12.8], [27.0, -32.0], [9.3, -32.0], [9.3, -17.3], [-2, -17.3]]
+    }
+  ],
+  "roads": [
+    {"osm": 132570252, "sidewalk": "no", "notes": "Eakring Road: grass verges and hedges, no pavement", "source": "Street View looking along the road (imagery as served 2026-10-15)"},
+    {
+      "osm": 145012287,
+      "sidewalk": "left",
+      "notes": "Baulk Lane: pavement on the east side only; hedges at the road edge on the west",
+      "source": "Street View looking along the road (imagery as served 2026-10-15)"
+    },
+    {"osm": 145012281, "sidewalk": "left", "notes": "South end of Baulk Lane: east-side pavement continues", "source": "Street View looking along the road (imagery as served 2026-10-15)"},
+    {
+      "osm": 317706873,
+      "sidewalk": "left",
+      "notes": "School Lane north of the church: pavement on the west (school) side only",
+      "source": "Street View looking along the road (imagery as served 2026-10-15)"
+    },
+    {"osm": 145012288, "sidewalk": "no", "notes": "Elm Tree Rise cul-de-sac: shared surface, lawns and drives to the kerb", "source": "Street View looking along the road (imagery as served 2026-10-15)"},
+    {
+      "osm": 132570251,
+      "sidewalk": "left",
+      "notes": "Link from Newark Road to Ossington Road: footway on the north-west side",
+      "source": "Street View looking along the road (imagery as served 2026-10-15)"
+    },
+    {"notes": "Gravel drive from Eakring Road", "frame": {"E": 470282, "N": 364163, "bearing": 100.9}, "at": [-20, -6], "surface": "gravel"}
+  ],
+  "details": [
+    {
+      "at": [53.169543, -0.947807],
+      "wall": "darkBrick",
+      "roof": "slate",
+      "front": "w",
+      "windows": [3, 3],
+      "chimneys": [0.05, 0.5],
+      "notes": "Cottage on the pavement, E side of Newark Road; two big stacks",
+      "source": "Street View (imagery as served 2026-10-15)"
+    },
+    {
+      "at": [53.168679, -0.947642],
+      "wall": "creamRender",
+      "roof": "slate",
+      "front": 45,
+      "windows": [3, 3],
+      "doors": [],
+      "chimneys": [0.33, 0.67],
+      "frame": "brown",
+      "notes": "Smooth cream render, dark brown windows, no door on the road side",
+      "source": "Street View (imagery as served 2026-10-15)"
+    },
+    {
+      "at": [53.169354, -0.947526],
+      "roof": "slate",
+      "front": "w",
+      "windows": [2, 2],
+      "doors": [0.5],
+      "notes": "The old Angel Inn, now the Rajdhaani restaurant: red brick over a white-painted ground floor with bay windows, white wing with black plinth",
+      "source": "Street View (imagery as served 2026-10-15)"
+    },
+    {"at": [53.169526, -0.947657], "wall": "buffBrick", "roof": "slate", "notes": "Buff/cream brick gable with stack behind the roadside cottage", "source": "Street View (imagery as served 2026-10-15)"},
+    {"at": [53.169762, -0.947576], "roof": "slate", "notes": "Victorian red-brick house with front cross-gable", "source": "Street View (imagery as served 2026-10-15)"},
+    {"at": [53.170049, -0.947524], "wall": "greyRender", "roof": "slate", "notes": "Grey-beige render with red-brick window surrounds and arches", "source": "Street View (imagery as served 2026-10-15)"},
+    {
+      "at": [53.168594, -0.946984],
+      "roof": "brownTile",
+      "front": "w",
+      "chimneys": [0.04, 0.96],
+      "wall": "redBrick",
+      "doors": [0.6],
+      "windows": [2, 2],
+      "porch": "gable",
+      "frame": "white",
+      "door": "white",
+      "notes": "Set back across a green; stacks at both gable ends; white door under a gabled porch, white windows",
+      "source": "Street View (imagery as served 2026-10-15, 2026-10-16)"
+    },
+    {"at": [53.168478, -0.946909], "wall": "redBrick", "roof": "pantile", "front": 327, "storeys": 1, "doors": [0.35, 0.6], "frame": "black", "door": "black", "notes": "Long red-brick barn conversion end-on to Newark Road, dark barn doors and windows on the north-west side, brick wall to the road", "source": "Street View from Newark Road (imagery as served 2026-10-16); aerial photograph (Google, imagery 2026)"},
+    {"at": [53.169535, -0.946998], "wall": "buffBrick", "roof": "slate", "notes": "Buff/cream gable with stack at the apex", "source": "Street View (imagery as served 2026-10-15)"},
+    {
+      "at": [53.172156, -0.946942],
+      "roof": "brownTile",
+      "front": "n",
+      "doors": [0.2, 0.58],
+      "windows": [4, 4],
+      "chimneys": [0.17, 0.58],
+      "notes": "Pair of council-style semis",
+      "source": "Street View (imagery as served 2026-10-15)",
+      "door": "white"
+    },
+    {
+      "at": [53.172491, -0.946682],
+      "roof": "pantile",
+      "front": "s",
+      "doors": [0.13, 0.87],
+      "windows": [4, 4],
+      "chimneys": [0.44, 0.59],
+      "notes": "Pair of semis, gabled porch canopy",
+      "source": "Street View (imagery as served 2026-10-15)",
+      "door": "white"
+    },
+    {
+      "at": [53.172178, -0.948763],
+      "roof": "brownTile",
+      "front": "n",
+      "doors": [0.22, 0.78],
+      "windows": [4, 4],
+      "chimneys": [0.36, 0.68],
+      "notes": "Pair of 1950s semis, white doors",
+      "source": "Street View (imagery as served 2026-10-15)",
+      "door": "white"
+    },
+    {
+      "at": [53.172457, -0.948904],
+      "roof": "brownTile",
+      "front": "s",
+      "doors": [0.35, 0.75],
+      "windows": [4, 0],
+      "chimneys": [0.85],
+      "storeys": 1,
+      "notes": "Pair of semi-detached bungalows",
+      "source": "Street View (imagery as served 2026-10-15)",
+      "door": "white"
+    },
+    {
+      "at": [53.172453, -0.948572],
+      "roof": "brownTile",
+      "front": "s",
+      "doors": [0.37, 0.8],
+      "windows": [4, 0],
+      "chimneys": [0.1],
+      "storeys": 1,
+      "notes": "Pair of semi-detached bungalows",
+      "source": "Street View (imagery as served 2026-10-15); aerial photograph (Google, imagery 2026) for the solar panels",
+      "door": "white",
+      "solar": {"face": 183, "span": [0.2, 0.55]}
+    },
+    {"at": [53.172457, -0.94953], "roof": "brownTile", "storeys": 1, "notes": "Red-brick bungalow", "source": "Street View (imagery as served 2026-10-15)"},
+    {"at": [53.172497, -0.946984], "roof": "pantile", "front": "s", "chimneys": [0.5], "notes": "Semis with central stack and tiled porch canopy", "source": "Street View (imagery as served 2026-10-15); aerial photograph (Google, imagery 2026) for the solar panels", "solar": {"face": 180, "span": [0.55, 0.8]}},
+    {"at": [53.172128, -0.946583], "roof": "brownTile", "storeys": 1, "notes": "Bungalow, white fascia", "source": "Street View (imagery as served 2026-10-15)"},
+    {"at": [53.172556, -0.946056], "roof": "brownTile", "wall": "redBrick", "front": 177, "doors": [0.6], "windows": [2, 3], "porch": "lean", "frame": "white", "door": "dbg", "notes": "Modern detached house, glazed front gable, attached double garage with grey doors, porch canopy on pillars", "source": "Street View (imagery as served 2026-10-15, 2026-10-16)"},
+    {
+      "at": [53.173277, -0.950935],
+      "roof": "concreteTile",
+      "source": "Street View (older imagery) for walls; aerial photograph (Google, imagery 2026) for the roof",
+      "wall": "redBrick",
+      "notes": "1970s detached red-brick house on Baulk Lane, integral garage"
+    },
+    {
+      "at": [53.173301, -0.950686],
+      "roof": "concreteTile",
+      "source": "Street View (older imagery) for walls; aerial photograph (Google, imagery 2026) for the roof",
+      "wall": "redBrick",
+      "notes": "1970s detached red-brick house on Baulk Lane, integral garage"
+    },
+    {
+      "at": [53.173029, -0.950588],
+      "roof": "concreteTile",
+      "source": "Street View (older imagery) for walls; aerial photograph (Google, imagery 2026) for the roof",
+      "wall": "redBrick",
+      "notes": "1970s detached red-brick house on Baulk Lane, integral garage"
+    },
+    {
+      "at": [53.172868, -0.950532],
+      "roof": "concreteTile",
+      "source": "Street View (older imagery) for walls; aerial photograph (Google, imagery 2026) for the roof",
+      "wall": "redBrick",
+      "notes": "1970s detached red-brick house on Baulk Lane, integral garage"
+    },
+    {
+      "at": [53.172715, -0.950458],
+      "roof": "concreteTile",
+      "source": "Street View (older imagery) for walls; aerial photograph (Google, imagery 2026) for the roof",
+      "wall": "redBrick",
+      "notes": "1970s detached red-brick house on Baulk Lane, integral garage"
+    },
+    {
+      "at": [53.17257, -0.950368],
+      "roof": "concreteTile",
+      "front": "e",
+      "doors": [0.6],
+      "windows": [2, 3],
+      "notes": "Detached, white Georgian-bar windows, porch canopy, garage to the south",
+      "source": "Street View (older imagery) for walls; aerial photograph (Google, imagery 2026) for the roof",
+      "wall": "redBrick"
+    },
+    {"at": [53.17156, -0.950103], "roof": "brownTile", "wall": "redBrick", "front": 291, "doors": [0.5], "windows": [3, 3], "chimneys": [0.86], "porch": "lean", "frame": "white", "notes": "Two-storey detached house, integral garage with a white door, tiled lean-to porch roof across the front, ivy; rubble-stone garden wall to the road", "source": "aerial photograph (Google, imagery 2026) for the roof; Street View from Sington Road (imagery as served 2026-10-15)"},
+    {"at": [53.171682, -0.949693], "roof": "slate", "source": "aerial photograph (Google, imagery 2026)"},
+    {"at": [53.17061, -0.94885], "roof": "slate", "source": "aerial photograph (Google, imagery 2026)"},
+    {"at": [53.170234, -0.950621], "roof": "brownTile", "storeys": 1, "windows": [0, 0], "notes": "Garage and store, white double garage doors", "source": "Street View (imagery as served 2026-10-15)"},
+    {
+      "at": [53.170164, -0.950215],
+      "wall": "render",
+      "front": "w",
+      "frame": "brown",
+      "notes": "Off-white render, red-brick window heads, dark brown windows",
+      "source": "Street View (imagery as served 2026-10-15)"
+    },
+    {
+      "at": [53.170759, -0.949309],
+      "roof": "pantile",
+      "label": "Country Kids Day Nursery",
+      "notes": "Long single-storey red-brick range, white windows",
+      "source": "Street View (imagery as served 2026-10-15)"
+    },
+    {"at": [53.17037, -0.949323], "roof": "pantile", "windows": [0, 0], "notes": "Red-brick barn by the road, blank wall to the road", "source": "Street View (imagery as served 2026-10-15)"},
+    {"at": [53.170226, -0.949844], "roof": "sheetLight", "notes": "Grey sheeted roofs", "source": "aerial photograph (Google, imagery 2026)"},
+    {
+      "at": [53.169063, -0.947423],
+      "wall": "redBrick",
+      "roof": "pantile",
+      "storeys": 2,
+      "notes": "New house (after the 2022 LIDAR), new estate road off Newark Road",
+      "source": "Street View (imagery as served 2026-10-15)"
+    },
+    {"at": [53.16908, -0.947151], "wall": "redBrick", "roof": "pantile", "storeys": 2, "notes": "New house (after the 2022 LIDAR)", "source": "Street View (imagery as served 2026-10-15)"},
+    {"at": [53.169036, -0.946713], "wall": "redBrick", "roof": "pantile", "storeys": 2, "notes": "New house (after the 2022 LIDAR)", "source": "aerial photograph (Google, imagery 2026)"},
+    {"at": [53.17304, -0.949962], "wall": "redBrick", "roof": "pantile", "front": 74, "doors": [0.56], "windows": [3, 0], "storeys": 1, "frame": "darkRed", "door": "darkRed", "notes": "Bungalow, door under a central front gable, leaded windows", "source": "Street View from Elm Tree Rise (imagery as served 2026-10-15); aerial photograph (Google, imagery 2026) for the solar panels", "solar": {"face": 255, "span": [0.1, 0.9]}, "gablets": [0.55]},
+    {"at": [53.172929, -0.949879], "wall": "redBrick", "roof": "pantile", "front": 73, "storeys": 1, "frame": "darkRed", "notes": "Bungalow with a front gablet", "source": "Street View from Elm Tree Rise (imagery as served 2026-10-15)", "gablets": [0.3]},
+    {"at": [53.172971, -0.949653], "wall": "redBrick", "roof": "pantile", "front": 341, "doors": [0.46], "windows": [2, 0], "storeys": 1, "frame": "darkRed", "door": "darkRed", "notes": "Bungalow with a front gablet and recessed door, garage alongside", "source": "Street View from Elm Tree Rise (imagery as served 2026-10-15); aerial photograph (Google, imagery 2026) for the solar panels", "solar": {"face": 170, "span": [0.2, 0.85]}, "gablets": [0.3]},
+    {"at": [53.17315, -0.949416], "wall": "redBrick", "roof": "pantile", "front": 203, "windows": [4, 4], "porch": "gable", "frame": "darkRed", "door": "red", "notes": "Two-storey house with two front gablets and a gabled porch canopy", "source": "Street View from Elm Tree Rise (imagery as served 2026-10-15)", "gablets": [0.35, 0.7]},
+    {"at": [53.172638, -0.949418], "wall": "redBrick", "roof": "pantile", "front": 70, "doors": [0.8], "windows": [3, 4], "porch": "gable", "frame": "darkRed", "door": "red", "notes": "Two-storey detached house, gabled porch canopy", "source": "Street View from Elm Tree Rise (imagery as served 2026-10-15)"},
+    {"at": [53.172801, -0.949398], "wall": "redBrick", "roof": "pantile", "front": 63, "windows": [4, 4], "frame": "darkRed", "notes": "Pair of two-storey semis with two front gablets; doors at the sides", "source": "Street View from Elm Tree Rise (imagery as served 2026-10-15)", "gablets": [0.3, 0.55]},
+    {"at": [53.173006, -0.949148], "wall": "redBrick", "roof": "pantile", "front": 210, "doors": [0.15], "windows": [1, 2], "porch": "gable", "chimneys": [0.97], "frame": "darkRed", "door": "red", "notes": "Two-storey detached house, gable-end stack, roof light, gabled porch canopy", "source": "Street View from Elm Tree Rise (imagery as served 2026-10-15)"},
+    {"at": [53.17275, -0.949015], "wall": "redBrick", "roof": "pantile", "front": 345, "doors": [0.15, 0.59], "windows": [4, 0], "storeys": 1, "frame": "brown", "door": "brown", "notes": "Pair of bungalows with two front gablets, recessed doors, dark brown windows", "source": "Street View from Elm Tree Rise (imagery as served 2026-10-15); aerial photograph (Google, imagery 2026) for the solar panels", "solar": {"face": 183, "span": [0.55, 0.95]}, "gablets": [0.17, 0.45]},
+    {"at": [53.172957, -0.948935], "wall": "redBrick", "roof": "pantile", "front": 187, "doors": [0.35, 0.9], "windows": [3, 4], "porch": "gable", "frame": "darkRed", "door": "red", "notes": "Pair of two-storey semis with three front gablets and gabled porch canopies", "source": "Street View from Elm Tree Rise (imagery as served 2026-10-15)", "gablets": [0.25, 0.5, 0.75]},
+    {"at": [53.172692, -0.948566], "wall": "redBrick", "roof": "pantile", "front": 332, "storeys": 1, "frame": "darkRed", "notes": "Bungalow with a front gable", "source": "Street View from Elm Tree Rise (imagery as served 2026-10-15); aerial photograph (Google, imagery 2026) for the solar panels", "solar": {"face": 183, "span": [0.1, 0.9]}},
+    {"at": [53.172819, -0.948604], "wall": "redBrick", "roof": "pantile", "front": 302, "windows": [2, 3], "porch": "gable", "chimneys": [0.97], "frame": "darkRed", "notes": "Two-storey detached house, stack on the gable, gabled porch canopy", "source": "Street View from Elm Tree Rise (imagery as served 2026-10-15)"},
+    {"at": [53.172928, -0.948536], "wall": "redBrick", "roof": "pantile", "front": 253, "porch": "gable", "frame": "darkRed", "notes": "Two-storey house end-on to the road: door in the west gable under a canopy, stack at the gable apex, brick garden wall", "source": "Street View from Elm Tree Rise (imagery as served 2026-10-15); aerial photograph (Google, imagery 2026) for the solar panels", "solar": {"face": 192, "span": [0.2, 1]}},
+    {"at": [53.173168, -0.949973], "wall": "redBrick", "roof": "pantile", "porch": "gable", "frame": "darkRed", "notes": "Two-storey semis with front gablets and gabled porch canopies", "source": "Street View from Elm Tree Rise (imagery as served 2026-10-15)", "gablets": [0.6, 0.85]},
+    {"at": [53.173198, -0.949729], "roof": "pantile", "wall": "redBrick", "front": "s", "door": "red", "notes": "Garage block, red up-and-over doors", "source": "Street View from Elm Tree Rise (imagery as served 2026-10-15)"},
+    {"at": [53.172921, -0.949459], "roof": "pantile", "wall": "redBrick", "front": 135, "door": "darkRed", "notes": "Double garage, maroon doors", "source": "Street View from Elm Tree Rise (imagery as served 2026-10-15)"},
+    {"at": [53.172681, -0.948784], "roof": "pantile", "wall": "redBrick", "front": 6, "door": "darkGreen", "notes": "Garage, green doors", "source": "Street View from Elm Tree Rise (imagery as served 2026-10-15)"},
+    {"at": [53.172273, -0.950063], "wall": "render", "roof": "brownTile", "front": 176, "chimneys": [0.05, 0.75], "frame": "white", "solar": {"face": 176, "span": [0.1, 0.9]}, "notes": "Off-white rendered house, solar panels over most of the south slope", "source": "Street View from Sington Road (imagery as served 2026-10-15)"},
+    {"at": [53.170378, -0.947212], "wall": "redBrick", "roof": "pantile", "storeys": 1, "windows": [0, 0], "front": 260, "notes": "Small red-brick outbuilding, blank gable to School Lane", "source": "Street View from School Lane (imagery as served 2026-10-16)"},
+    {"at": [53.169223, -0.948401], "solar": {"face": 180, "span": [0.2, 0.5]}, "notes": "Farm range behind Newark Road: solar panels on a south-facing pantile roof", "source": "aerial photograph (Google, imagery 2026)"},
+    {"at": [53.172524, -0.948145], "wall": "redBrick", "roof": "slate", "front": 187, "doors": [0.5], "windows": [2, 3], "porch": "gable", "frame": "white", "door": "black", "notes": "Two-storey red-brick house under a hipped slate roof, black door under a gabled porch, white windows; brick wall to the road", "source": "Street View from Ossington Road (imagery as served 2026-10-16)"},
+    {"at": [53.172175, -0.948144], "wall": "redBrick", "roof": "pantile", "front": 359, "frame": "white", "notes": "Red-brick house above the road behind tall hedges, steps up to the door, white windows", "source": "Street View from Ossington Road (imagery as served 2026-10-16)"},
+    {"at": [53.172676, -0.947499], "wall": "redBrick", "roof": "pantile", "front": 190, "notes": "Converted red-brick farm range, diamond-pattern brick vent in the west gable, old brick wall to the road", "source": "Street View from Ossington Road (imagery as served 2026-10-16)"},
+    {"at": [53.17256, -0.946299], "wall": "redBrick", "roof": "pantile", "front": 176, "doors": [0.88], "gablets": [0.65], "frame": "white", "notes": "Red-brick chalet house, a dormer gable over the front, arched recessed porch; double garage with grey doors alongside", "source": "Street View from Ossington Road (imagery as served 2026-10-16)"},
+    {"at": [53.172564, -0.945744], "wall": "redBrick", "roof": "slate", "notes": "Red-brick house with several gables and stacks under a grey slate roof", "source": "Street View from Ossington Road (imagery as served 2026-10-16)"}
+  ],
+  "walls": [
+    {"osm": 318949851, "side": "left", "from": [53.168559, -0.947311], "to": [53.168343, -0.947059], "h": 0.9, "wall": "redBrick", "cap": "dbg", "notes": "Low red-brick wall with a coping and gate piers along the front of the barn conversion, back of the pavement", "source": "Street View from Newark Road (imagery as served 2026-10-16); plot ends from the aerial photograph (Google, imagery 2026)"},
+    {"osm": 145012286, "side": "left", "from": [53.17175, -0.95003], "to": [53.17147, -0.95017], "h": 0.6, "wall": "stone", "cap": "stone", "notes": "Low rubble-stone wall with a rockery bed, along the front of the house with the integral garage", "source": "Street View from Sington Road (imagery as served 2026-10-15)"},
+    {"osm": 145012286, "side": "left", "from": [53.17205, -0.9499], "to": [53.17182, -0.95003], "h": 0.4, "wall": "redBrick", "cap": "dbg", "notes": "Low brick plinth wall under the tall hedge at the north end of Sington Road", "source": "Street View from the Sington Road / Ossington Road junction (imagery as served 2026-10-15)"},
+    {"osm": 317706872, "side": "left", "from": [53.170945, -0.95015], "to": [53.170753, -0.950004], "h": 1.3, "wall": "stone", "cap": "stone", "notes": "Grey reconstituted-stone retaining wall with a hedge on top, back of the pavement on the north-east side of Newark Road", "source": "Street View from Newark Road (imagery as served 2026-10-16); ends from the aerial photograph (Google, imagery 2026)"},
+    {"osm": 318949852, "side": "left", "from": [53.170753, -0.950004], "to": [53.170759, -0.949841], "h": 1.3, "wall": "stone", "cap": "stone", "notes": "The same wall, as far as the drive into the barn yard", "source": "Street View from Newark Road (imagery as served 2026-10-16); ends from the aerial photograph (Google, imagery 2026)"},
+    {"osm": 145012289, "side": "left", "from": [53.170093, -0.947791], "to": [53.170469, -0.947542], "h": 0.8, "wall": "stone", "cap": "stone", "notes": "Rubble-stone retaining wall of St Bartholomew's churchyard along School Lane", "source": "Street View from School Lane (imagery as served 2026-10-16); churchyard boundary from OpenStreetMap"},
+    {"osm": 317706873, "side": "left", "from": [53.170469, -0.947542], "to": [53.170709, -0.9476], "h": 0.8, "wall": "stone", "cap": "stone", "notes": "The churchyard wall, continued north", "source": "Street View from School Lane (imagery as served 2026-10-16); churchyard boundary from OpenStreetMap"},
+    {"osm": 145012289, "side": "right", "from": [53.1702, -0.94755], "to": [53.16998, -0.94765], "h": 1.2, "wall": "redBrick", "cap": "redBrick", "piers": 12, "notes": "Red-brick garden wall with piers in front of the rendered house, east side of School Lane", "source": "Street View from School Lane (imagery as served 2026-10-16)"},
+    {"osm": 317706873, "side": "right", "from": [53.17058, -0.94733], "to": [53.170469, -0.947542], "h": 0.9, "wall": "redBrick", "cap": "redBrick", "notes": "Low red-brick wall with a hedge on top, east side of School Lane", "source": "Street View from School Lane (imagery as served 2026-10-16)"},
+    {"osm": 145012289, "side": "right", "from": [53.170469, -0.947542], "to": [53.17035, -0.94758], "h": 0.9, "wall": "redBrick", "cap": "redBrick", "notes": "The same wall, as far as the barn", "source": "Street View from School Lane (imagery as served 2026-10-16)"},
+    {"osm": 145012297, "side": "left", "from": [53.17233, -0.948346], "to": [53.17233, -0.948122], "h": 1.2, "wall": "redBrick", "cap": "redBrick", "notes": "Red-brick wall with a hedge on top along the front of the slate-roofed house, north side of Ossington Road, ending at a gate", "source": "Street View from Ossington Road (imagery as served 2026-10-16)"},
+    {"osm": 145012297, "side": "left", "from": [53.17235, -0.9478], "to": [53.17235, -0.9473], "h": 1.0, "wall": "redBrick", "cap": "lbg", "notes": "Old red-brick wall with a grey coping along the front of the converted farm range, north side of Ossington Road", "source": "Street View from Ossington Road (imagery as served 2026-10-16)"}
+  ],
+  "lidarBuildings": [
+    {"at": [53.173201, -0.949727], "notes": "Garages between Elm Tree Rise 9 and 10", "source": "EA LIDAR 2022 (shape, heights); aerial photograph (Google, imagery 2026) to confirm it is a building, checked 2026-10-15"},
+    {"at": [53.172921, -0.949457], "notes": "Garage at the bend of Elm Tree Rise", "source": "EA LIDAR 2022 (shape, heights); aerial photograph (Google, imagery 2026) to confirm it is a building, checked 2026-10-15"},
+    {"at": [53.172681, -0.948784], "notes": "Garage beside a house on Elm Tree Rise", "source": "EA LIDAR 2022 (shape, heights); aerial photograph (Google, imagery 2026) to confirm it is a building, checked 2026-10-15"},
+    {"at": [53.172319, -0.950311], "notes": "Outbuilding behind a house on Baulk Lane", "source": "EA LIDAR 2022 (shape, heights); aerial photograph (Google, imagery 2026) to confirm it is a building, checked 2026-10-15"},
+    {"at": [53.172083, -0.946754], "notes": "Shed in a garden south of Ossington Road", "source": "EA LIDAR 2022 (shape, heights); aerial photograph (Google, imagery 2026) to confirm it is a building, checked 2026-10-15"},
+    {"at": [53.170812, -0.948684], "notes": "Shed north of the churchyard", "source": "EA LIDAR 2022 (shape, heights); aerial photograph (Google, imagery 2026) to confirm it is a building, checked 2026-10-15"}
+  ]
+}
