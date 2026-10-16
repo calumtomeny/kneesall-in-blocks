@@ -386,13 +386,15 @@ export function buildKneesall(data, opts = {}) {
     beet: { c: PAL.green, top: PLATE, alt: PAL.darkGreen },
     rape: { c: PAL.yellow, top: PLATE, alt: PAL.brightLightYellow },
     pasture: { c: PAL.green, top: 0, alt: PAL.lime, pasture: true },
+    grass: { c: PAL.green, top: 0, alt: PAL.lime },
     ploughed: { c: PAL.reddishBrown, top: PLATE, plough: true },
   };
   // invented crops, where nothing better is known
   const crops = [CROPS.wheat, CROPS.rape, CROPS.pasture, CROPS.barley, CROPS.ploughed, CROPS.wheat];
-  // Crop Map of England (CROME) land-use codes -> crops; trees and hedges (WO12) don't vote
+  // Crop Map of England (CROME) land-use codes -> crops; trees and hedges (WO12) don't vote, and "non-vegetated or
+  // sparsely vegetated land" (NA01) round here is gardens and grounds, so plain grass
   const CROME = { AC66: 'wheat', AC32: 'wheat', AC25: 'wheat', AC01: 'barley', AC63: 'barley', AC19: 'oats', AC65: 'oats', AC17: 'maize',
-    LG03: 'beans', LG20: 'beans', AC03: 'beet', AC67: 'rape', AC06: 'rape', PG01: 'pasture', TG01: 'pasture', NA01: 'ploughed' };
+    LG03: 'beans', LG20: 'beans', AC03: 'beet', AC67: 'rape', AC06: 'rape', PG01: 'pasture', TG01: 'pasture', NA01: 'grass' };
   // CROME hexagons (40 m sides, 57 studs centre to corner) by 60-stud bucket, for the nearest centre to a cell
   const hexAt = (() => {
     const B = 60, grid = new Map();
