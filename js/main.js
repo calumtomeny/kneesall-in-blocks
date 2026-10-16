@@ -55,11 +55,34 @@ const TIMES = [
   { name: 'Midday', elev: 48, az: 170, sunCol: 0xfff6e8, sunI: 3.2, hemiI: 0.55, fog: 0xc9d9e8, exp: 0.78 },
   { name: 'Late afternoon', elev: 24, az: 235, sunCol: 0xffe7c4, sunI: 2.9, hemiI: 0.5, fog: 0xd3dbe2, exp: 0.82 },
   { name: 'Golden hour', elev: 5, az: 268, sunCol: 0xffad5c, sunI: 2.2, hemiI: 0.35, fog: 0xe6c7a8, exp: 0.95 },
+  { name: 'Now', now: true },
 ];
-let timeIdx = 2;
+let timeIdx = 2, timeAt = 0;
+const KNEESALL = [53.17, -0.95];   // latitude, longitude
+
+// Where the sun is in the sky over Kneesall at a moment (compass azimuth and elevation in degrees), from the usual
+// low-precision solar formulae (good to a fraction of a degree)
+function sunAt(date, [lat, lon]) {
+  const r = Math.PI / 180, d = date / 86400000 - 10957.5;   // days from noon on 1 January 2000 (UT)
+  const g = (357.529 + 0.98560028 * d) * r, L = (280.459 + 0.98564736 * d + 1.915 * Math.sin(g) + 0.02 * Math.sin(2 * g)) * r;
+  const e = (23.439 - 0.00000036 * d) * r;
+  const ra = Math.atan2(Math.cos(e) * Math.sin(L), Math.cos(L)), dec = Math.asin(Math.sin(e) * Math.sin(L));
+  const H = ((18.697374558 + 24.06570982441908 * d) * 15 + lon) * r - ra, p = lat * r;
+  const el = Math.asin(Math.sin(p) * Math.sin(dec) + Math.cos(p) * Math.cos(dec) * Math.cos(H));
+  const az = Math.atan2(-Math.sin(H), Math.tan(dec) * Math.cos(p) - Math.sin(p) * Math.cos(H));
+  return { elev: el / r, az: (az / r + 360) % 360 };
+}
+
 const sunDir = new THREE.Vector3();
-function applyTime() {
-  const t = TIMES[timeIdx];
+function applyTime(quiet = false) {
+  let t = TIMES[timeIdx];
+  if (t.now) {
+    // the real sun, lit like the setting nearest its height; after dark it is held just above the horizon
+    const now = new Date(), s = sunAt(now, KNEESALL), look = TIMES.filter(x => !x.now).sort((a, b) => Math.abs(a.elev - s.elev) - Math.abs(b.elev - s.elev))[0];
+    const clock = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    t = { ...look, elev: Math.max(2, s.elev), az: s.az, name: s.elev < 2 ? `Now (${clock}): the sun has set, so dusk light` : `Now (${clock})` };
+    timeAt = performance.now();
+  }
   // compass azimuth (0 north, 90 east, 180 south) with x east and z south
   const el = THREE.MathUtils.degToRad(t.elev), az = THREE.MathUtils.degToRad(t.az);
   sunDir.set(Math.cos(el) * Math.sin(az), Math.sin(el), -Math.cos(el) * Math.cos(az));
@@ -73,7 +96,7 @@ function applyTime() {
   scene.environmentIntensity = 0.55;
   sun.color.set(t.sunCol); sun.intensity = t.sunI; hemi.intensity = t.hemiI;
   scene.fog.color.set(t.fog); renderer.toneMappingExposure = t.exp;
-  showToast(t.name);
+  if (!quiet) showToast(t.name);
 }
 
 // ------------------------------------------------------------------ materials
@@ -610,6 +633,8 @@ function updateCamera(dt) {
 }
 
 function updateWorld(dt, t) {
+  // "Now" follows the real sun, moved on every five minutes
+  if (TIMES[timeIdx].now && performance.now() - timeAt > 300000) applyTime(true);
   for (const cl of dynamic.clouds) { cl.position.x += dt * 1.6; if (cl.position.x > 800) cl.position.x = -800; }
   if (dynamic.clock) {
     const d = new Date(); const h = d.getHours() % 12 + d.getMinutes() / 60, m = d.getMinutes() + d.getSeconds() / 60;
