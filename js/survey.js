@@ -141,12 +141,14 @@ function partsBuilding(at, parts0, o) {
   const { chimneys, front, ...opts } = o;
   // 2x2 stacks centred on each chimney (lidarBuilding nudges them inside the walls)
   const chimneyAt = (chimneys ?? []).map(([u, w]) => [Math.round(u * k - mx - 1), Math.round(-w * k - mz - 1)]);
-  let doorDir = opts.doorDir;
-  if (!doorDir && front) {
-    const fx = front[0] * Math.cos(a) + front[1] * Math.sin(a), fz = -front[0] * Math.sin(a) + front[1] * Math.cos(a);
-    doorDir = Math.abs(fx) > Math.abs(fz) ? [Math.sign(fx), 0] : [0, Math.sign(fz)];
-  }
-  lidarBuilding(W, { cells, top, roofCol, wallCol }, { ...opts, chimney: opts.chimney ?? opts.wall, doorDir, chimneyAt });
+  // a world direction to the nearest local wall direction
+  const toLocal = ([wx, wz]) => {
+    const fx = wx * Math.cos(a) + wz * Math.sin(a), fz = -wx * Math.sin(a) + wz * Math.cos(a);
+    return Math.abs(fx) > Math.abs(fz) ? [Math.sign(fx), 0] : [0, Math.sign(fz)];
+  };
+  const doorDir = opts.doorDir ?? (front ? toLocal(front) : undefined);
+  const blankDirs = opts.blank?.map(toLocal);
+  lidarBuilding(W, { cells, top, roofCol, wallCol }, { ...opts, chimney: opts.chimney ?? opts.wall, doorDir, blankDirs, chimneyAt });
   P.poly = outline(cells).map(([x, z]) => P.toWorld(x, z));
   // the commonest roof colour stands for the building on the map
   const tally = new Map(); for (const c of roofCol.values()) tally.set(c, (tally.get(c) ?? 0) + 1);

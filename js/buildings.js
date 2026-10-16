@@ -268,6 +268,8 @@ export function lidarBuilding(W, { cells, top, roofCol, wallCol }, o = {}) {
   for (const r of runs) {
     const axis = r.dz ? 'x' : 'z';
     if (r.end - r.start + 1 < 5) continue;
+    // walls seen to be blank (survey.json details "blank"), unless it's the surveyed front
+    if (r !== doorRun && o.blankDirs?.some(([dx, dz]) => dx === r.dx && dz === r.dz)) continue;
     let slots = [];
     for (let a = r.start + 2; a + 2 <= r.end - 1; a += 4) slots.push(a);
     let doors = r === doorRun ? [slots[Math.floor(slots.length / 2)]] : [];

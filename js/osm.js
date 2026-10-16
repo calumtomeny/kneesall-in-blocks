@@ -258,6 +258,7 @@ export function buildKneesall(data) {
         if (seen.label) o.label = seen.label;
         const deg = (v) => (typeof v === 'number' ? v : { n: 0, e: 90, s: 180, w: 270 }[v]);
         if (seen.front !== undefined) { const f = deg(seen.front) * Math.PI / 180; front = [Math.sin(f), -Math.cos(f)]; }
+        if (seen.blank) o.blank = seen.blank.map(v => { const f = deg(v) * Math.PI / 180; return [Math.sin(f), -Math.cos(f)]; });
         if (seen.solar) o.solar = { face: deg(seen.solar.face), span: seen.solar.span };
         if (seen.doors) o.doorAt = seen.doors;
         // windows seen on the front make it a house, even in a farmyard (barns get no windows and a wide door)
