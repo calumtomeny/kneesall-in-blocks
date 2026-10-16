@@ -210,7 +210,7 @@ function signCanvas(s) {
     x.restore();
     return { cv, round: true };
   }
-  if (s.style === 'giveway' || s.style === 'direction') {
+  if (s.style === 'giveway' || s.style === 'direction' || s.style === 'warning') {
     // shaped plates: draw each outline (sign units, y up) onto the canvas, red-bordered triangle or black-bordered flags
     const P = (px, py) => [(px / s.w + 0.5) * pxW, (0.5 - py / s.h) * pxH];
     const path = (poly) => { x.beginPath(); poly.forEach(([a, b], i) => x[i ? 'lineTo' : 'moveTo'](...P(a, b))); x.closePath(); };
@@ -221,6 +221,21 @@ function signCanvas(s) {
       x.save(); x.translate(pxW / 2, pxH * 0.42); x.scale(0.62, 0.62); x.translate(-pxW / 2, -pxH * 0.42); path(poly); x.restore();
       x.fillStyle = '#fff'; x.fill();
       x.fillStyle = '#111'; x.font = font(pxH * 0.1); x.fillText('GIVE', pxW / 2, pxH * 0.3); x.fillText('WAY', pxW / 2, pxH * 0.42);
+      return { cv, shape: true };
+    }
+    if (s.style === 'warning') {
+      // red-bordered warning triangle; `text` names the symbol
+      const poly = signShape(s)[0];
+      path(poly); x.fillStyle = '#c91a09'; x.fill();
+      x.save(); x.translate(pxW / 2, pxH * 0.6); x.scale(0.68, 0.68); x.translate(-pxW / 2, -pxH * 0.6); path(poly); x.restore();
+      x.fillStyle = '#fff'; x.fill();
+      x.fillStyle = '#111';
+      if (s.text === 'crossroads') {
+        // the through road (thicker, pointed) crossed by the side roads
+        const cx = pxW / 2, y0 = pxH * 0.36, y1 = pxH * 0.84, t = pxW * 0.07;
+        x.beginPath(); x.moveTo(cx, y0 - t * 0.6); x.lineTo(cx + t * 0.6, y0 + t * 0.4); x.lineTo(cx + t * 0.6, y1); x.lineTo(cx - t * 0.6, y1); x.lineTo(cx - t * 0.6, y0 + t * 0.4); x.closePath(); x.fill();
+        x.fillRect(cx - pxW * 0.17, pxH * 0.6, pxW * 0.34, t * 0.75);
+      }
       return { cv, shape: true };
     }
     const names = s.text.split('|');
@@ -270,6 +285,7 @@ function signCanvas(s) {
 function signShape(s) {
   const w = s.w, h = s.h;
   if (s.style === 'giveway') return [[[-w / 2, h / 2], [w / 2, h / 2], [0, -h / 2]]];
+  if (s.style === 'warning') return [[[-w / 2, -h / 2], [w / 2, -h / 2], [0, h / 2]]];
   const g = w * 0.02, p = h * 0.45;
   return [[[-g, h / 2], [-w / 2 + p, h / 2], [-w / 2, 0], [-w / 2 + p, -h / 2], [-g, -h / 2]],
     [[g, h / 2], [w / 2 - p, h / 2], [w / 2, 0], [w / 2 - p, -h / 2], [g, -h / 2]]];

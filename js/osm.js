@@ -616,6 +616,7 @@ export function buildKneesall(data) {
     speed: { w: 2.2, h: 2.2, postH: 5 },
     lorryEnd: { w: 2.2, h: 2.2, postH: 5 },
     giveway: { w: 2.4, h: 2.1, postH: 4.5 },
+    warning: { w: 2.4, h: 2.1, postH: 5 },
     direction: { w: 5, h: 1.1, postH: 3.7, posts: [-2, 0, 2] },
   };
   for (const sg of data.survey?.signs ?? []) {
