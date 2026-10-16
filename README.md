@@ -6,9 +6,6 @@ A walkable WebGL model of Kneesall, Nottinghamshire, built out of LEGO-style bri
 python3 tools/serve.py        # then open http://localhost:8765
 ```
 
-Add `?infill=1` to the URL to add generic houses along roads that have no mapped buildings
-(this is the default only when the Ordnance Survey data is missing).
-
 ## Data sources
 
 | What | Source | Licence |
@@ -23,9 +20,11 @@ Add `?infill=1` to the URL to add generic houses along roads that have no mapped
 | Crop in each field | Rural Payments Agency Crop Map of England (CROME) 2024, majority per hedge-bounded field (`tools/crome.py`) | OGL v3 — © Rural Payments Agency copyright and/or database right 2024 |
 | Hand-surveyed buildings, walls, doors, windows, chimneys, labels (`data/survey.json`) | Measured from the LIDAR; observed in Street View and aerial photographs (Oct 2026) and recorded by hand | — |
 
-Invented: the shade of brick on houses nobody has looked at, window and door positions
-on walls not seen from a road, where the street lamps stand (one every 24 m: none are mapped), the cars and
-people, and the optional infill houses.
+Nothing is made up. Where no data says what something looks like, it gets a plain default: red brick walls and
+white front doors on houses nobody has looked at, and regularly spaced windows on walls not seen from a road. The
+churchyard's headstones are laid out in rows, as the real ones aren't mapped. Things that exist but whose
+positions aren't known are left out: street lamps, village and speed-limit signs, and the cars, people and
+animals.
 
 ### Roof materials
 
@@ -101,5 +100,5 @@ Steps 4–7 add to the JSON written by step 1, so run them in that order.
 - `js/survey.js` – builds buildings from measured parts (fitted or hand-surveyed), yards and drives from `data/survey.json`
 - `tools/fit_buildings.py`, `tools/survey_grid.py`, `tools/streetview_bearings.py` – fit every building's parts from the LIDAR; print LIDAR grids for surveying; which buildings a Street View panorama sees
 - `js/bricks.js` – voxel world → merged, bevelled brick geometry
-- `js/parts.js`, `js/landmarks.js`, `js/actors.js` – houses, street furniture, church, minifigs, cars
+- `js/parts.js`, `js/landmarks.js`, `js/actors.js` – houses, street furniture, church, the player's minifig
 - `tools/` – data converters (OSGB grid conversion, shapefile and GeoTIFF readers), dev server

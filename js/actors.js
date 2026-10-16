@@ -1,6 +1,6 @@
-// Minifigures and cars
+// The player's minifigure
 import * as THREE from 'three';
-import { PAL, Builder, col } from './bricks.js';
+import { PAL } from './bricks.js';
 
 const plastic = (hex, extra = {}) => new THREE.MeshPhysicalMaterial({ color: hex, roughness: 0.3, clearcoat: 0.4, clearcoatRoughness: 0.18, ...extra });
 
@@ -99,61 +99,3 @@ export function animateMinifig(fig, speed, dt) {
   u.legs[0].rotation.x = a; u.legs[1].rotation.x = -a;
   u.arms[0].rotation.x = -a * 0.8; u.arms[1].rotation.x = a * 0.8;
 }
-
-// LEGO car, facing +x, origin at road level centre
-export function makeCar(bodyHex, kind = 'hatch') {
-  const g = new THREE.Group();
-  const b = new Builder(), gl = new Builder();
-  const L = 11, Wd = 6;
-  const c = col(bodyHex), k = col(PAL.black), grey = col(PAL.lbg);
-  const bx = (x0, y0, z0, x1, y1, z1, cc, o) => b.box(x0 - L / 2, y0, z0 - Wd / 2, x1 - L / 2, y1, z1 - Wd / 2, cc, o);
-  bx(0.5, 0.8, 0.5, L - 0.5, 1.2, Wd - 0.5, k);            // chassis plate
-  bx(0, 1.2, 0, L, 2.4, Wd, c);                            // lower body
-  bx(0, 2.4, 0, 3, 2.8, Wd, c);                            // bonnet plate
-  bx(-0.1, 1.6, 0.4, 0.05, 2.2, 1.4, col(0xfff7d6), { chamfer: 0.02 });
-  bx(-0.1, 1.6, Wd - 1.4, 0.05, 2.2, Wd - 0.4, col(0xfff7d6), { chamfer: 0.02 });
-  bx(L - 0.05, 1.6, 0.4, L + 0.1, 2.2, 1.4, col(PAL.red), { chamfer: 0.02 });
-  bx(L - 0.05, 1.6, Wd - 1.4, L + 0.1, 2.2, Wd - 0.4, col(PAL.red), { chamfer: 0.02 });
-  bx(-0.2, 1.2, 0, 0.2, 1.6, Wd, grey);                    // bumpers
-  bx(L - 0.2, 1.2, 0, L + 0.2, 1.6, Wd, grey);
-  const back = kind === 'van' ? L : L - 1.5;
-  bx(3.9, 2.4, 0, back, 2.8, 0.4, c); bx(3.9, 2.4, Wd - 0.4, back, 2.8, Wd, c);
-  // pillars
-  for (const x of [3.9, 7, back - 0.4]) { bx(x, 2.8, 0, x + 0.4, 4.4, 0.4, c); bx(x, 2.8, Wd - 0.4, x + 0.4, 4.4, Wd, c); }
-  bx(3.9, 4.4, 0, back, 4.8, Wd, kind === 'police' ? col(PAL.white) : c);   // roof
-  if (kind !== 'van') bx(back, 2.4, 0, L, 2.8, Wd, c);
-  // windows
-  const gb = (x0, y0, z0, x1, y1, z1) => gl.box(x0 - L / 2, y0, z0 - Wd / 2, x1 - L / 2, y1, z1 - Wd / 2, col(0x8fb4c4), { chamfer: 0, gap: 0 });
-  gb(3.1, 2.8, 0.4, 3.9, 4.4, Wd - 0.4); gb(back, 2.8, 0.4, back + 0.3, 4.4, Wd - 0.4);
-  gb(4.3, 2.8, 0.1, back - 0.4, 4.4, 0.3); gb(4.3, 2.8, Wd - 0.3, back - 0.4, 4.4, Wd - 0.1);
-  // steering wheel / seat hint
-  bx(5, 2.4, 1, 6.5, 3.4, 2.6, k); bx(5, 2.4, 3.4, 6.5, 3.4, 5, k);
-  const mat = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.28, clearcoat: 0.5, clearcoatRoughness: 0.15 });
-  const body = new THREE.Mesh(b.toGeometry(), mat); body.castShadow = true; body.receiveShadow = true;
-  const glass = new THREE.Mesh(gl.toGeometry(), new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.05, transparent: true, opacity: 0.55 }));
-  g.add(body, glass);
-  const tyre = new THREE.CylinderGeometry(1.05, 1.05, 0.9, 22), hub = new THREE.CylinderGeometry(0.55, 0.55, 0.95, 16);
-  const tm = plastic(PAL.black, { roughness: 0.6, clearcoat: 0 }), hm = plastic(PAL.lbg);
-  const wheels = [];
-  for (const x of [-L / 2 + 2.3, L / 2 - 2.3]) for (const s of [-1, 1]) {
-    const w = new THREE.Group(); w.position.set(x, 1.05, s * (Wd / 2 - 0.1));
-    const t = new THREE.Mesh(tyre, tm); t.rotation.x = Math.PI / 2; t.castShadow = true;
-    const h = new THREE.Mesh(hub, hm); h.rotation.x = Math.PI / 2;
-    w.add(t, h); g.add(w); wheels.push(w);
-  }
-  g.userData.wheels = wheels;
-  return g;
-}
-
-export const VILLAGERS = [
-  { torso: PAL.black, legs: PAL.black, print: 'vicar', hair: PAL.lbg, face: 'glasses' },
-  { torso: PAL.darkGreen, legs: PAL.darkTan, print: 'jacket', cap: PAL.darkGreen, face: 'beard' },
-  { torso: PAL.blue, legs: PAL.darkBlue, print: 'overalls', cap: PAL.red },
-  { torso: PAL.red, legs: PAL.black, print: 'shirt', hair: PAL.reddishBrown, face: 'lips' },
-  { torso: PAL.white, legs: PAL.dbg, print: 'shirt', hair: PAL.black },
-  { torso: PAL.sandBlue, legs: PAL.tan, print: 'plain', hair: PAL.darkOrange, face: 'lips' },
-  { torso: PAL.darkRed, legs: PAL.darkBlue, print: 'jacket', hair: PAL.brown },
-  { torso: PAL.lime, legs: PAL.dbg, print: 'hivis', cap: PAL.yellow },
-  { torso: PAL.mediumBlue, legs: PAL.darkBlue, print: 'plain', hair: PAL.tan, face: 'lips' },
-  { torso: PAL.orange, legs: PAL.black, print: 'shirt', hair: PAL.black },
-];

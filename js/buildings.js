@@ -16,12 +16,13 @@ export const MATERIALS = {
   render: PAL.white, creamRender: PAL.tan, greyRender: PAL.darkTan, black: PAL.black, solar: PAL.darkBlue, stone: PAL.lbg,
 };
 
-// Walls aren't in any open data; Kneesall is a red-brick village, so houses get brick in a few shades.
-// Roofs come from the LIDAR (roofColour) and these are only the fallback.
+// Walls aren't in any open data. Where nobody has looked (survey.json "details"), houses and traditional farm
+// ranges are plain red brick, the commonest walling in Kneesall, and modern sheds plain grey cladding. Roofs come
+// from the LIDAR (roofMaterial) and these are only the fallback.
 export const STYLES = {
-  old: { walls: [MATERIALS.redBrick, MATERIALS.redBrick, MATERIALS.redBrick, MATERIALS.darkBrick, MATERIALS.brownBrick], roofs: [MATERIALS.pantile, MATERIALS.slate, MATERIALS.pantile, MATERIALS.brownTile] },
-  modern: { walls: [MATERIALS.redBrick, MATERIALS.redBrick, MATERIALS.brownBrick, MATERIALS.buffBrick, MATERIALS.darkBrick], roofs: [MATERIALS.brownTile, MATERIALS.pantile, MATERIALS.slate, MATERIALS.brownTile] },
-  farm: { walls: [PAL.sandGreen, PAL.dbg, PAL.lbg, PAL.sandGreen], roofs: [MATERIALS.sheetLight, MATERIALS.sheetDark] },
+  old: { wall: MATERIALS.redBrick, roof: MATERIALS.pantile },
+  modern: { wall: MATERIALS.redBrick, roof: MATERIALS.brownTile },
+  farm: { wall: PAL.lbg, roof: MATERIALS.sheetLight },
 };
 
 // Roof material from the National LIDAR Programme: low-pitched roofs are sheeting (large) or felt (small);
@@ -195,7 +196,7 @@ export function footprintBuilding(W, cells, o = {}) {
       if (i < ls.length) { s0 = prev = ls[i]; }
     }
   }
-  if (o.chimneys !== 0) {
+  if (o.chimneys > 0) {
     const inner = list.filter(([x, z]) => level.get(x + ',' + z) >= 2 && has(x + 1, z) && has(x, z + 1) && has(x + 1, z + 1));
     if (inner.length) { const [x, z] = pick(inner); chimney(W, x, z, H, H + maxL + 1, o.chimney ?? wall); }
   }
@@ -321,7 +322,7 @@ export function lidarBuilding(W, { cells, top, roofCol, wallCol }, o = {}) {
   if (!o.chimneyAt && o.chimneys !== 0 && maxT - minT >= 3) {
     const ridge = list.filter(([x, z]) => T(x, z) >= maxT - 1 && !isB(x, z) && has(x + 1, z) && has(x, z + 1) && has(x + 1, z + 1))
       .sort((p, q) => p[0] - q[0] || p[1] - q[1]);
-    const n = Math.min(ridge.length, o.chimneys ?? (R() < 0.5 ? 2 : 1));
+    const n = Math.min(ridge.length, o.chimneys ?? 0);
     for (const [x, z] of n === 2 ? [ridge[0], ridge[ridge.length - 1]] : ridge.length ? [pick(ridge)] : []) {
       const t = T(x, z);
       chimney(W, x, z, t - 1, t + 2, o.chimney ?? wall);
@@ -351,8 +352,7 @@ function canopy(W, r, d0, kind, roof, wall, has) {
 
 export function houseStyle(zone) {
   const S = STYLES[zone] ?? STYLES.old;
-  const wall = pick(S.walls);
-  return { wall, roof: wall === PAL.white ? PAL.dbg : pick(S.roofs), floors: R() < 0.22 ? 1 : 2, lintel: R() < 0.4 ? PAL.lbg : undefined, quoins: wall === PAL.white && R() < 0.4 ? PAL.lbg : undefined, porch: R() < 0.2 };
+  return { wall: S.wall, roof: S.roof, floors: 2 };
 }
 
 export { sign };

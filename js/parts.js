@@ -40,7 +40,7 @@ export function windowIn(W, axis, fixed, a0, w, y0, h, o = {}) {
 }
 
 export function doorIn(W, axis, fixed, a0, w, h, o = {}) {
-  const c = o.color ?? pick([PAL.darkGreen, PAL.darkBlue, PAL.red, PAL.white, PAL.black, PAL.reddishBrown, PAL.sandGreen]);
+  const c = o.color ?? PAL.white;   // the commonest front door in the survey; others are recorded per house
   for (let a = a0; a < a0 + w; a++) for (let y = 0; y < h; y++) {
     if (axis === 'x') W.set(a, y, fixed, c, F_HIDDEN); else W.set(fixed, y, a, c, F_HIDDEN);
   }
@@ -200,19 +200,6 @@ export function tree(W, x, z, o = {}) {
   }
 }
 
-// Yew / conifer: stacked square layers
-export function conifer(W, x, z, o = {}) {
-  const h = o.h ?? 10, base = o.base ?? 3, c = o.c ?? PAL.darkGreen;
-  for (let y = 0; y < 2; y++) W.set(x, y, z, PAL.reddishBrown, F_HIDDEN);
-  for (let y = 2; y < h; y++) {
-    const r = Math.max(0, Math.round(base * (1 - (y - 2) / (h - 2)) + 0.3));
-    for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
-      if (Math.abs(dx) === r && Math.abs(dz) === r && r > 1) continue;
-      W.set(x + dx, y, z + dz, c, F_NOCOLLIDE | F_PLAIN);
-    }
-  }
-}
-
 export function hedge(W, x0, z0, x1, z1, h = 2, c = PAL.darkGreen) {
   for (let z = Math.min(z0, z1); z <= Math.max(z0, z1); z++) for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) {
     for (let y = 0; y < h; y++) W.set(x, y, z, (R() < 0.15 ? PAL.green : c), F_PLAIN);
@@ -230,17 +217,6 @@ export function wallRun(W, x0, z0, x1, z1, h, c, cap) {
 export function fencePost(W, x, z, c = PAL.reddishBrown) { W.set(x, 0, z, c); W.set(x, 1, z, c); }
 
 // --------------------------------------------------------------- street furniture
-export function lamp(W, x, z) {
-  W.set(x, 0, z, PAL.black, F_HIDDEN); W.set(x, 1, z, PAL.black, F_HIDDEN);
-  W.extras.push(({ at, glass }) => {
-    const b = at(x, z);
-    b.geom(new THREE.CylinderGeometry(0.18, 0.22, 7.5, 10), new THREE.Matrix4().makeTranslation(x + 0.5, 3.75, z + 0.5), col(PAL.black));
-    b.box(x + 0.15, 7.4, z + 0.15, x + 0.85, 7.6, z + 0.85, col(PAL.black), { chamfer: 0.03, gap: 0 });
-    b.box(x + 0.1, 8.4, z + 0.1, x + 0.9, 8.65, z + 0.9, col(PAL.black), { chamfer: 0.05, gap: 0 });
-    glass.box(x + 0.2, 7.6, z + 0.2, x + 0.8, 8.4, z + 0.8, col(0xfff1b0), { chamfer: 0.02, gap: 0 });
-  });
-}
-
 export function phoneBox(W, x, z) {
   // K6 kiosk: red 2x2, 7 bricks tall, crown on top
   for (let y = 0; y < 7; y++) for (const [dx, dz] of [[0, 0], [1, 0], [0, 1], [1, 1]]) W.set(x + dx, y, z + dz, PAL.red, F_HIDDEN);

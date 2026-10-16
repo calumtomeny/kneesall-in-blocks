@@ -130,43 +130,6 @@ function louvre(W, axis, fixed, a0, w, y0, h) {
   });
 }
 
-export function cow(W, x, z, rot) {
-  const c = () => (R() < 0.45 ? PAL.black : PAL.white);
-  const L = rot ? [[0, 0], [0, 3], [1, 0], [1, 3]] : [[0, 0], [3, 0], [0, 1], [3, 1]];
-  for (const [dx, dz] of L) W.set(x + dx, 0, z + dz, PAL.white, 0);
-  for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) for (let y = 1; y <= 2; y++) {
-    const [dx, dz] = rot ? [j, i] : [i, j];
-    W.set(x + dx, y, z + dz, c());
-  }
-  // head
-  const [hx, hz] = rot ? [x, z - 1] : [x + 4, z];
-  W.set(hx, 2, hz, PAL.white); W.set(hx, 3, hz, PAL.black, F_TILE);
-  if (rot) { W.set(hx + 1, 2, hz, PAL.white); W.set(hx + 1, 3, hz, PAL.black, F_TILE); }
-  else { W.set(hx, 2, hz + 1, PAL.white); W.set(hx, 3, hz + 1, PAL.black, F_TILE); }
-  W.set(hx, 1, hz, PAL.flesh, F_TILE);
-}
-
-export function tractor(W, x, z) {
-  const g = PAL.darkGreen;
-  W.fill(x, 1, z, x + 6, 2, z + 3, g);
-  W.fill(x + 4, 3, z, x + 6, 5, z + 3, PAL.darkGreen);
-  W.fill(x + 4, 6, z, x + 6, 6, z + 3, PAL.black, F_TILE);
-  W.clear(x + 4, 3, z + 1, x + 6, 5, z + 2);
-  W.fill(x + 1, 3, z + 1, x + 1, 4, z + 1, PAL.black);
-  W.glass.push([x + 3.95, 3 * BRICK, z + 0.2, x + 4.05, 6 * BRICK, z + 3.8, 0xbfdde6]);
-  W.fill(x, 0, z, x + 6, 0, z + 3, PAL.black, F_HIDDEN);
-  W.extras.push(({ at }) => {
-    const b = at(x, z);
-    const big = new THREE.CylinderGeometry(1.8, 1.8, 1.2, 24), small = new THREE.CylinderGeometry(1.0, 1.0, 0.9, 20);
-    const rx = new THREE.Matrix4().makeRotationX(Math.PI / 2);
-    for (const zz of [z - 0.6, z + 4.6]) {
-      b.geom(big, new THREE.Matrix4().makeTranslation(x + 5, 1.8, zz).multiply(rx), col(PAL.black));
-      b.geom(small, new THREE.Matrix4().makeTranslation(x + 1, 1.0, zz).multiply(rx), col(PAL.black));
-      b.geom(new THREE.CylinderGeometry(1.0, 1.0, 1.25, 16), new THREE.Matrix4().makeTranslation(x + 5, 1.8, zz).multiply(rx), col(PAL.yellow));
-    }
-  });
-}
-
 export function busShelter(W, x, z) {
   for (let y = 0; y < 5; y++) { W.set(x, y, z, PAL.darkGreen); W.set(x + 5, y, z, PAL.darkGreen); W.set(x, y, z - 1, PAL.darkGreen); W.set(x + 5, y, z - 1, PAL.darkGreen); }
   W.fill(x, 5, z - 2, x + 5, 5, z + 1, PAL.darkGreen, F_TILE);

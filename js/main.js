@@ -6,8 +6,8 @@ import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { buildWorld, studGeometry, studTexture, Builder, World, BRICK, PLATE, PAL, col, rng, F_NOCOLLIDE } from './bricks.js';
 import { buildKneesall, groundMeshes } from './osm.js';
-import { polyCells, centroid, polylineLength, pointAlong, distToPolyline } from './geo.js';
-import { makeMinifig, animateMinifig, makeCar, VILLAGERS } from './actors.js';
+import { polyCells, centroid, pointAlong, distToPolyline } from './geo.js';
+import { makeMinifig, animateMinifig } from './actors.js';
 
 const $ = (id) => document.getElementById(id);
 const status = (t) => { $('loading-text').textContent = t; };
@@ -92,7 +92,7 @@ let toastTimer = 0;
 function showToast(t) { const e = $('toast'); e.textContent = t; e.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => e.classList.remove('show'), 1800); }
 
 // ------------------------------------------------------------------ build the village
-let K, G, W, BOUNDS, studChunks = [], dynamic = { cars: [], walkers: [], clouds: [] };
+let K, G, W, BOUNDS, studChunks = [], dynamic = { clouds: [] };
 const groundStuds = new Map();
 const stud = { hi: studGeometry(12, true), lo: studGeometry(6, false) };
 
@@ -136,8 +136,7 @@ async function build() {
   if (data.attribution) $('osm').innerHTML = data.attribution.replace('OpenStreetMap contributors', '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors');
   status('Laying baseplates…'); await nextFrame();
   let t0 = performance.now();
-  const params = new URLSearchParams(location.search);
-  K = buildKneesall(data, { infill: params.has('infill') ? params.get('infill') !== '0' : undefined });
+  K = buildKneesall(data);
   G = K.G; W = K.W; window.__dbg.K = K;
   BOUNDS = { x0: -G.half, x1: G.half - 1, z0: -G.half, z1: G.half - 1 };
   console.log('osm', (performance.now() - t0) | 0, 'ms', K.buildings.length, 'buildings'); t0 = performance.now();
@@ -179,7 +178,7 @@ async function build() {
   }
 
   status('Hiring villagers…'); await nextFrame();
-  addActors(); addClouds();
+  addClouds();
   buildMinimap();
   placePlayerAtStart();
 }
@@ -255,54 +254,7 @@ function addClocks(world, parent) {
   }
 }
 
-// ------------------------------------------------------------------ villagers, cars, clouds
-function addActors() {
-  const R = rng(99);
-  // villagers walking along the pavements of real roads near the centre
-  K.walkRoads.forEach((r, i) => {
-    const L = polylineLength(r.pts);
-    for (let k = 0; k < 2; k++) {
-      // pick a stretch of pavement inside the village
-      let s0 = R() * L, tries = 0;
-      while (tries++ < 30) { const p = pointAlong(r.pts, s0); if (Math.hypot(p.x, p.z + 40) < 220) break; s0 = R() * L; }
-      const span = 40 + R() * 50;
-      const fig = makeMinifig(VILLAGERS[(i * 2 + k) % VILLAGERS.length]);
-      scene.add(fig);
-      dynamic.walkers.push({ fig, pts: r.pts, side: r.sides[k % r.sides.length], off: r.off, s0: Math.max(0, s0 - span / 2), s1: Math.min(L, s0 + span / 2), s: s0, dir: R() < 0.5 ? 1 : -1, speed: 2.2 + R() * 1.2, pause: 0 });
-    }
-  });
-  // people outside the restaurant, the school and the café; the vicar by the war memorial
-  for (const P of K.buildings) {
-    if (!P.label || P.generated) continue;
-    const near = distToPolyline(P.cx, P.cz, K.newark ?? [[0, 0], [1, 0]]);
-    const fx = near.qx - P.cx, fz = near.qz - P.cz, L = Math.hypot(fx, fz) || 1;
-    const n = P.label === 'Rajdhaani' ? 3 : P.label.startsWith('Old Hall') ? 0 : 1;
-    for (let k = 0; k < n; k++) {
-      const f = makeMinifig(VILLAGERS[(k * 3 + P.label.length) % VILLAGERS.length]);
-      const d = P.r - 4;
-      f.position.set(P.cx + fx / L * d + (k - 1) * 2 * fz / L, 0, P.cz + fz / L * d - (k - 1) * 2 * fx / L);
-      f.position.y = G.heightAt(f.position.x, f.position.z);
-      f.rotation.y = Math.atan2(-fx, -fz) + (R() - 0.5);
-      scene.add(f);
-    }
-  }
-  const mem = K.labels.find(l => l.name === 'War Memorial');
-  if (mem) { const v = makeMinifig(VILLAGERS[0]); v.position.set(mem.x + 3, G.heightAt(mem.x + 3, mem.z + 1), mem.z + 1); v.rotation.y = -Math.PI / 2; scene.add(v); }
-
-  // cars on Newark Road (A616). UK: drive on the left.
-  if (K.carPath && K.carPath.length > 1) {
-    const L = polylineLength(K.carPath);
-    const colours = [PAL.red, PAL.blue, PAL.white, PAL.yellow, PAL.darkGreen, PAL.lbg, PAL.black, PAL.mediumBlue];
-    const kinds = ['hatch', 'hatch', 'van', 'hatch'];
-    for (let i = 0; i < 8; i++) {
-      const dir = i % 2 ? 1 : -1;
-      const car = makeCar(i === 5 ? PAL.white : colours[i % colours.length], i === 5 ? 'police' : kinds[i % 4]);
-      scene.add(car);
-      dynamic.cars.push({ car, dir, s: R() * L, L, speed: 16 + R() * 6, v: 16 });
-    }
-  }
-}
-
+// ------------------------------------------------------------------ clouds
 function addClouds() {
   const R = rng(7);
   const mat = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.5, clearcoat: 0.2 });
@@ -505,44 +457,13 @@ function updateCamera(dt) {
 }
 
 function updateWorld(dt, t) {
-  for (const w of dynamic.walkers) {
-    if (w.pause > 0) { w.pause -= dt; animateMinifig(w.fig, 0, dt); }
-    else {
-      w.s += w.dir * w.speed * dt;
-      if (w.s > w.s1 || w.s < w.s0) { w.dir *= -1; w.pause = 1 + Math.random() * 3; w.s = THREE.MathUtils.clamp(w.s, w.s0, w.s1); }
-      animateMinifig(w.fig, w.speed, dt);
-    }
-    const q = pointAlong(w.pts, w.s);
-    w.fig.position.set(q.x - q.dz * w.side * w.off, 0, q.z + q.dx * w.side * w.off);
-    w.fig.position.y = groundH(w.fig.position.x, w.fig.position.z);
-    w.fig.rotation.y = Math.atan2(q.dx * w.dir, q.dz * w.dir);
-  }
-  const p = player.pos;
-  for (const c of dynamic.cars) {
-    // slow down for the player (or another car) in the lane ahead
-    const q = pointAlong(K.carPath, c.s);
-    const tx = q.dx * c.dir, tz = q.dz * c.dir;           // travel direction
-    let target = c.speed;
-    const vx = p.x - c.car.position.x, vz = p.z - c.car.position.z;
-    const ahead = vx * tx + vz * tz, lateral = Math.abs(vx * tz - vz * tx);
-    if (lateral < 4.5 && ahead > 0 && ahead < 24 && p.y - K.roadY(p.x, p.z) < 3) target = ahead < 10 ? 0 : c.speed * (ahead - 10) / 14;
-    for (const o of dynamic.cars) if (o !== c && o.dir === c.dir) { let g = (o.s - c.s) * c.dir; if (g < 0) g += c.L; if (g < 22) target = Math.min(target, o.v * (g - 14) / 8); }
-    target = Math.max(0, target);
-    c.v += (target - c.v) * Math.min(1, dt * (target < c.v ? 4 : 1));
-    c.s = (c.s + c.dir * c.v * dt + c.L) % c.L;
-    // drive on the left: offset to the left of the direction of travel
-    const px = q.x + tz * 2.7, pz = q.z - tx * 2.7;
-    const y0 = K.roadY(px - tx * 3, pz - tz * 3), y1 = K.roadY(px + tx * 3, pz + tz * 3);
-    c.car.position.set(px, (y0 + y1) / 2, pz);
-    c.car.rotation.set(0, Math.atan2(-tz, tx), Math.atan2(y1 - y0, 6));
-    for (const wh of c.car.userData.wheels) wh.rotation.z -= c.v * dt / 1.05;
-  }
   for (const cl of dynamic.clouds) { cl.position.x += dt * 1.6; if (cl.position.x > 800) cl.position.x = -800; }
   if (dynamic.clock) {
     const d = new Date(); const h = d.getHours() % 12 + d.getMinutes() / 60, m = d.getMinutes() + d.getSeconds() / 60;
     dynamic.clock.hr.rotation.z = -h / 12 * Math.PI * 2; dynamic.clock.mn.rotation.z = -m / 60 * Math.PI * 2;
   }
   // shadow camera follows the player, snapped to texels to avoid shimmering
+  const p = player.pos;
   const tex = (2 * SR) / 4096;
   const cx = Math.round(p.x / tex) * tex, cz = Math.round(p.z / tex) * tex;
   sun.target.position.set(cx, 0, cz);
@@ -630,7 +551,6 @@ function drawMinimap() {
     ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillText(l.name, l.x - BOUNDS.x0 + 0.5, l.z - BOUNDS.z0 + 0.5);
     ctx.fillStyle = '#fff'; ctx.fillText(l.name, l.x - BOUNDS.x0, l.z - BOUNDS.z0);
   }
-  for (const c of dynamic.cars) { ctx.fillStyle = '#ffd400'; ctx.fillRect(c.car.position.x - BOUNDS.x0 - 2, c.car.position.z - BOUNDS.z0 - 2, 4, 4); }
   ctx.restore();
   // player arrow
   ctx.save(); ctx.translate(S / 2, S / 2); ctx.rotate(-player.yaw);

@@ -7,11 +7,11 @@
 // Hand-surveyed (data/survey.json): a few buildings measured from LIDAR and photographs, replacing OS outlines.
 // From Historic England listings: Old Hall, Old Hall Cottage and the war memorial.
 // From the Rural Payments Agency's Crop Map of England (CROME): the crop in each field.
-// Invented: wall brick shades, street lamp positions, and (only without OS data) extra houses along unmapped roads.
+// Plain defaults where nothing is known: red brick walls, white front doors, regularly spaced windows.
 import * as THREE from 'three';
 import { World, Builder, PAL, BRICK, PLATE, F_TILE, F_HIDDEN, F_NOCOLLIDE, F_PLAIN, col, rng } from './bricks.js';
-import { R, pick, tree, conifer, hedge, lamp, postBox, bench, sign } from './parts.js';
-import { warMemorial, headstone, cow, tractor } from './landmarks.js';
+import { R, pick, tree, hedge, postBox, bench, sign } from './parts.js';
+import { warMemorial, headstone } from './landmarks.js';
 import { buildingFromPolygon, buildingFromRect, churchFromPolygon, houseStyle, STYLES, MATERIALS, roofMaterial } from './buildings.js';
 import { surveyedBuildings, surveyGrounds, surveyRoads, fittedBuilding } from './survey.js';
 import { KWALL } from './roofs.js';
@@ -34,7 +34,7 @@ const PAVE = 2.6;              // pavement width beyond the carriageway
 // carriageways stand a little above pavements so that where one road's pavement meets another road's carriageway
 // (every junction) the carriageway always shows
 const ROAD_TOP = 0.5, PAVE_TOP = 0.4;
-const VILLAGE_R = 330;         // pavements / street lamps only near the village
+const VILLAGE_R = 330;         // pavements of unknown sides only near the village
 
 // Listed buildings that OSM doesn't map (coordinates from Historic England via Wikipedia)
 const LISTED = {
@@ -60,7 +60,7 @@ export class Ground {
   heightAt(x, z) { const i = this.i(Math.floor(x), Math.floor(z)); return i < 0 ? 0 : this.top[i]; }
 }
 
-export function buildKneesall(data, opts = {}) {
+export function buildKneesall(data) {
   const half = data.half;
   const G = new Ground(half);
   const W = new World();
@@ -204,7 +204,7 @@ export function buildKneesall(data, opts = {}) {
     if (inArea('farmyard', cx, cz) || ar > 420) {
       // modern sheds (low-pitched sheeting) are clad; traditional pitched farm ranges are brick
       const shed = /^sheet/.test(roofMaterial(b) ?? 'sheet');
-      return { wall: shed ? pick(STYLES.farm.walls) : pick(STYLES.old.walls), roof: pick(STYLES.farm.roofs), floors: 1, windows: false, chimneys: 0, door: PAL.dbg, roofCap: 5, barn: true };
+      return { wall: shed ? STYLES.farm.wall : STYLES.old.wall, roof: STYLES.farm.roof, floors: 1, windows: false, chimneys: 0, door: PAL.dbg, roofCap: 5, barn: true };
     }
     const o = houseStyle(zone);
     return ar < 45 ? { ...o, floors: 1, chimneys: 0, porch: false } : o;
@@ -299,31 +299,6 @@ export function buildKneesall(data, opts = {}) {
     addBuilding(buildingFromRect(cx, cz, 14, 10, frontTo(cx, cz), OLD_HALL_COTTAGE));
   }
 
-  // Infill: generic houses along road frontages with no mapped buildings (default only without OS data)
-  if (opts.infill ?? !data.osBuildings) {
-    const IR = rng(4242);
-    const frontage = carRoads.filter(r => r.type !== 'service');
-    for (const r of frontage) {
-      const L = polylineLength(r.pts);
-      for (const side of [-1, 1]) for (let s = 6; s < L - 6; s += 19 + IR() * 6) {
-        const p = pointAlong(r.pts, s);
-        if (Math.hypot(p.x, p.z + 40) > 300 || IR() < 0.18) continue;
-        const w = 12 + Math.floor(IR() * 4) * 2, d = 10 + Math.floor(IR() * 2) * 2;
-        const back = r.spec.hw + PAVE + 5 + IR() * 4 + d / 2;
-        const nx = -p.dz * side, nz = p.dx * side;           // unit normal towards this side
-        const cx = p.x + nx * back, cz = p.z + nz * back;
-        if (!inBounds(cx, cz, 20)) continue;
-        const c = Math.cos(Math.atan2(-nx, nz)), sn = Math.sin(Math.atan2(-nx, nz));
-        const corners = [[-w / 2, -d / 2], [w / 2, -d / 2], [w / 2, d / 2], [-w / 2, d / 2]].map(([lx, lz]) => [cx + lx * c - lz * sn, cz + lx * sn + lz * c]);
-        let ok = true;
-        polyCells(corners, (x, z) => { if (G.has(x, z, 32) || !inBounds(x, z, 4)) ok = false; });
-        if (!ok) continue;
-        addBuilding(buildingFromRect(cx, cz, w, d, [-nx, -nz], { ...houseStyle(cz < -220 ? 'modern' : 'old'), generated: true }));
-        buildings[buildings.length - 1].generated = true;
-      }
-    }
-  }
-
   // each building sits on the lowest ground under its footprint; the plot is levelled to that height
   for (const P of buildings) {
     let lo = Infinity;
@@ -373,10 +348,6 @@ export function buildKneesall(data, opts = {}) {
   }
 
   // ------------------------------------------------------------ farmland: fields bounded by real hedges, roads and streams
-  const FR = rng(77), SP = 170, I0 = Math.floor(-half / SP) - 2, NI = Math.ceil(2 * half / SP) + 5, seeds = [];
-  for (let j = 0; j < NI; j++) for (let i = 0; i < NI; i++) seeds.push([(I0 + i + 0.15 + FR() * 0.7) * SP, (I0 + j + 0.15 + FR() * 0.7) * SP, Math.floor(FR() * 6)]);
-  const seed = (i, j) => seeds[(j - I0) * NI + (i - I0)];
-  const fieldId = new Int32Array(G.n * G.n).fill(-1);
   const CROPS = {
     wheat: { c: PAL.tan, top: PLATE, alt: PAL.darkTan },
     barley: { c: PAL.darkTan, top: PLATE, alt: PAL.tan },
@@ -385,16 +356,12 @@ export function buildKneesall(data, opts = {}) {
     beans: { c: PAL.olive, top: PLATE, alt: PAL.darkGreen },
     beet: { c: PAL.green, top: PLATE, alt: PAL.darkGreen },
     rape: { c: PAL.yellow, top: PLATE, alt: PAL.brightLightYellow },
-    pasture: { c: PAL.green, top: 0, alt: PAL.lime, pasture: true },
     grass: { c: PAL.green, top: 0, alt: PAL.lime },
-    ploughed: { c: PAL.reddishBrown, top: PLATE, plough: true },
   };
-  // invented crops, where nothing better is known
-  const crops = [CROPS.wheat, CROPS.rape, CROPS.pasture, CROPS.barley, CROPS.ploughed, CROPS.wheat];
   // Crop Map of England (CROME) land-use codes -> crops; trees and hedges (WO12) don't vote, and "non-vegetated or
-  // sparsely vegetated land" (NA01) round here is gardens and grounds, so plain grass
+  // sparsely vegetated land" (NA01) round here is gardens and grounds, so grass like the pasture
   const CROME = { AC66: 'wheat', AC32: 'wheat', AC25: 'wheat', AC01: 'barley', AC63: 'barley', AC19: 'oats', AC65: 'oats', AC17: 'maize',
-    LG03: 'beans', LG20: 'beans', AC03: 'beet', AC67: 'rape', AC06: 'rape', PG01: 'pasture', TG01: 'pasture', NA01: 'grass' };
+    LG03: 'beans', LG20: 'beans', AC03: 'beet', AC67: 'rape', AC06: 'rape', PG01: 'grass', TG01: 'grass', NA01: 'grass' };
   // CROME hexagons (40 m sides, 57 studs centre to corner) by 60-stud bucket, for the nearest centre to a cell
   const hexAt = (() => {
     const B = 60, grid = new Map();
@@ -407,7 +374,7 @@ export function buildKneesall(data, opts = {}) {
       return best;
     };
   })();
-  // label connected open land between barriers; very large pieces are split with the jittered seeds
+  // label connected open land between barriers (hedges, roads, streams, gardens): the fields
   const comp = new Int32Array(G.n * G.n).fill(-1);
   const sizes = [];
   const open = (i) => i >= 0 && comp[i] === -1 && !(G.occ[i] & (16 | 4 | 1 | 2 | 8)) && !hedgeMask[i];
@@ -423,47 +390,43 @@ export function buildKneesall(data, opts = {}) {
     }
     sizes.push(q.length);
   }
-  // each field's crop: what most of its CROME hexagons show (weighted by the classifier's confidence), else invented
+  // Each field's crop is what most of its CROME hexagons show, weighted by the classifier's confidence. Where they
+  // disagree a lot, the "field" is really several fields or grounds without hedges between them: each spot then
+  // takes the crop its nearby hexagons favour (a Gaussian falloff, so the boundaries are smooth and a lone
+  // misclassified hexagon is outvoted by its neighbours). Land CROME doesn't cover is grass.
+  const kindAt = (x, z) => { const h = hexAt(x + 0.5, z + 0.5); return h && CROME[h[2]] ? [CROME[h[2]], 0.05 + h[3]] : null; };
   const votes = new Map();
   for (let z = -half; z < half; z++) for (let x = -half; x < half; x++) {
-    const gi = G.i(x, z), c0 = comp[gi];
+    const c0 = comp[G.i(x, z)];
     if (c0 < 0) continue;
     if (sizes[c0] < 300) { G.set(x, z, PAL.green, 0, 1); continue; }   // verges and odd corners stay grass
-    let id = c0;
-    if (sizes[c0] > 30000) {
-      const i = Math.floor(x / SP), j = Math.floor(z / SP);
-      let best = 1e18, sid = 0;
-      for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
-        const sd = seed(i + di, j + dj), d = (sd[0] - x) ** 2 + (sd[1] - z) ** 2;
-        if (d < best) { best = d; sid = (i + di + 100) * 1000 + (j + dj + 100); }
-      }
-      id = c0 * 1000003 + sid;
-    }
-    fieldId[gi] = id;
-    const h = hexAt(x + 0.5, z + 0.5), kind = h && CROME[h[2]];
-    if (kind) { if (!votes.has(id)) votes.set(id, new Map()); const v = votes.get(id); v.set(kind, (v.get(kind) ?? 0) + 0.05 + h[3]); }
+    const k = kindAt(x, z);
+    if (k) { if (!votes.has(c0)) votes.set(c0, new Map()); const v = votes.get(c0); v.set(k[0], (v.get(k[0]) ?? 0) + k[1]); }
   }
-  const cropOf = new Map();
-  for (const [id, v] of votes) cropOf.set(id, CROPS[[...v].sort((a, b) => b[1] - a[1])[0][0]]);
+  const fieldCrop = new Map();
+  for (const [c0, v] of votes) {
+    const ranked = [...v].sort((a, b) => b[1] - a[1]), total = ranked.reduce((t, e) => t + e[1], 0);
+    fieldCrop.set(c0, { main: ranked[0][0], mixed: ranked[0][1] < 0.7 * total });
+  }
+  const SIGMA = 70, hexes = (data.crome?.hex ?? []).filter(h => CROME[h[2]]);
+  const blendCache = new Map();
+  const blended = (x, z, fallback) => {
+    const key = x + ',' + z + ',' + fallback; if (blendCache.has(key)) return blendCache.get(key);
+    const w = new Map();
+    for (const h of hexes) {
+      const d2 = (h[0] - x) ** 2 + (h[1] - z) ** 2; if (d2 > 9 * SIGMA * SIGMA) continue;
+      const k = CROME[h[2]]; w.set(k, (w.get(k) ?? 0) + (0.05 + h[3]) * Math.exp(-d2 / (2 * SIGMA * SIGMA)));
+    }
+    const k = w.size ? [...w].sort((a, b) => b[1] - a[1])[0][0] : fallback;
+    blendCache.set(key, k); return k;
+  };
   for (let z = -half; z < half; z++) for (let x = -half; x < half; x++) {
-    const gi = G.i(x, z), id = fieldId[gi];
-    if (id < 0) continue;
-    if (!cropOf.has(id)) cropOf.set(id, crops[Math.floor(FR() * crops.length)]);
-    const C = cropOf.get(id);
-    if (C.plough) G.set(x, z, z & 1 ? PAL.reddishBrown : PAL.brown, z & 1 ? PLATE : 0, z & 1);
-    else G.set(x, z, ((x * 7 + z * 13) % 11 === 0 && Math.abs(x) + Math.abs(z) < 260) ? C.alt : C.c, C.top, 1);
-    if (C.pasture && FR() < 0.00035) cow(W, x, z, FR() < 0.5 ? 1 : 0);
-  }
-  // without LIDAR, put invented hedges between the invented fields
-  if (!lidar) for (let z = -half + 1; z < half - 1; z++) for (let x = -half + 1; x < half - 1; x++) {
-    const a = fieldId[G.i(x, z)]; if (a < 0) continue;
-    const r = fieldId[G.i(x + 1, z)], d = fieldId[G.i(x, z + 1)];
-    const edge = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => fieldId[G.i(x + dx, z + dz)] < 0 && !G.has(x + dx, z + dz, 2 | 8));
-    if ((r >= 0 && r !== a) || (d >= 0 && d !== a) || edge) {
-      if (((x * 31 + z * 17) % 97) < 6) continue;
-      W.set(x, 0, z, PAL.darkGreen, F_PLAIN); if ((x ^ z) % 5) W.set(x, 1, z, R() < 0.1 ? PAL.green : PAL.darkGreen, F_PLAIN);
-      if (R() < 0.004) tree(W, x, z, { r: 3.5 + R() * 2, trunk: 6 });
-    }
+    const c0 = comp[G.i(x, z)];
+    if (c0 < 0 || sizes[c0] < 300) continue;
+    const f = fieldCrop.get(c0);
+    // the blend changes slowly, so it is worked out on a 4-stud lattice
+    const C = CROPS[!f ? 'grass' : f.mixed ? blended((x & ~3) + 2, (z & ~3) + 2, f.main) : f.main];
+    G.set(x, z, ((x * 7 + z * 13) % 11 === 0 && Math.abs(x) + Math.abs(z) < 260) ? C.alt : C.c, C.top, 1);
   }
 
   // ------------------------------------------------------------ area surfaces & contents
@@ -585,13 +548,9 @@ export function buildKneesall(data, opts = {}) {
     if (d > r.spec.hw + 1.2 && !G.has(x, z, 16 | 64 | 1 | 8) && inBounds(x, z, 1) && ((x * 7 + z * 3) % 41) > 2) { W.set(x, 0, z, PAL.darkGreen, F_PLAIN); W.set(x, 1, z, PAL.darkGreen, F_PLAIN); }
   });
 
-  // ------------------------------------------------------------ churchyard: wall, headstones, yews, memorial
+  // ------------------------------------------------------------ churchyard: headstones (laid out in rows; the real ones
+  // aren't mapped) and the war memorial. Its walls along the roads are in survey.json.
   for (const a of area('cemetery')) {
-    const ring = [...a.pts, a.pts[0]];
-    lineCells(ring, 0.6, (x, z) => {
-      if (G.has(x, z, 1 | 2) || nearestRoad(x + 0.5, z + 0.5, roads.filter(r => r.type === 'footway' || r.type === 'path' || r.type === 'service')).d < 3) return;
-      W.set(x, 0, z, R() < 0.75 ? PAL.lbg : PAL.tan); W.set(x, 1, z, PAL.lbg, F_TILE);
-    });
     const [mx, mz] = project(LISTED.warMemorial);
     warMemorial(W, Math.floor(mx), Math.floor(mz));
     let n = 0;
@@ -599,18 +558,7 @@ export function buildKneesall(data, opts = {}) {
       if (G.has(x, z, 1 | 2) || W.has(x, 0, z)) return;
       for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) if (G.has(x + dx, z + dz, 1 | 2)) return;
       if ((x % 4 === 0) && (z % 5 === 0) && R() < 0.4) { headstone(W, x, z); n++; }
-      else if (R() < 0.002) conifer(W, x, z, { h: 10 + Math.floor(R() * 3), base: 3 });
     });
-  }
-
-  // ------------------------------------------------------------ garden trees behind houses
-  if (!lidar) for (const P of buildings) {
-    if (R() < 0.45) continue;
-    const [lx, lz] = [R() * 12, 22 + R() * 6];
-    const [x, z] = P.toWorld(lx, lz).map(Math.floor);
-    let ok = inBounds(x, z, 6);
-    for (let dz = -3; dz <= 3 && ok; dz++) for (let dx = -3; dx <= 3; dx++) if (G.has(x + dx, z + dz, 1 | 2 | 8)) { ok = false; break; }
-    if (ok) tree(W, x, z, { r: 3 + R() * 2.5 });
   }
 
   // ------------------------------------------------------------ power poles + wires
@@ -643,38 +591,6 @@ export function buildKneesall(data, opts = {}) {
     if (p.kind === 'bench') bench(W, px, pz);
   }
 
-  // ------------------------------------------------------------ street lamps, village signs, speed limits
-  const newark = chainPolylines(roads.filter(r => r.type === 'primary').map(r => r.pts)).sort((a, b) => polylineLength(b) - polylineLength(a))[0];
-  const villageEdge = [];
-  for (const r of carRoads) {
-    const L = polylineLength(r.pts);
-    for (let s = 12; s < L; s += 34) {
-      const p = pointAlong(r.pts, s);
-      if (Math.hypot(p.x, p.z + 40) > VILLAGE_R) continue;
-      // on the pavement if there is one (alternating sides if both), else on the verge
-      const side = r.sides?.length === 1 ? (r.sides[0] === 'right' ? 1 : -1) : (Math.floor(s / 34) & 1) ? 1 : -1;
-      const off = r.spec.hw + (r.sides === null || r.sides.includes(side > 0 ? 'right' : 'left') ? PAVE - 0.6 : 1.2);
-      const x = Math.floor(p.x - p.dz * side * off), z = Math.floor(p.z + p.dx * side * off);
-      if (!G.has(x, z, 1) && !W.has(x, 0, z)) lamp(W, x, z);
-    }
-  }
-  for (const chain of [newark, ...chainPolylines(roads.filter(r => r.name === 'Eakring Road' || r.name === 'Ossington Road').map(r => r.pts))]) {
-    if (!chain) continue;
-    const L = polylineLength(chain); let inside = null;
-    for (let s = 0; s < L; s += 2) {
-      const p = pointAlong(chain, s); const now = Math.hypot(p.x, p.z + 40) < VILLAGE_R + 25;
-      if (inside !== null && now !== inside && inBounds(p.x, p.z, 10)) villageEdge.push({ ...p, entering: now });
-      inside = now;
-    }
-  }
-  for (const e of villageEdge) {
-    const dir = e.entering ? 1 : -1, off = nearestRoad(e.x, e.z).road.spec.hw + 1.2; // left-hand verge for traffic entering the village
-    const lx = e.dz * dir, lz = -e.dx * dir;
-    const x = Math.floor(e.x + lx * off), z = Math.floor(e.z + lz * off);
-    sign(W, x, z, 'KNEESALL', { w: 7, h: 2.6, postH: 6, style: 'village', twoPosts: true, face: Math.atan2(e.dx * dir, e.dz * dir) });
-    const x2 = Math.floor(e.x + lx * off - e.dx * dir * 6), z2 = Math.floor(e.z + lz * off - e.dz * dir * 6);
-    sign(W, x2, z2, '30', { w: 2.4, h: 2.4, postH: 6, style: 'speed', face: Math.atan2(e.dx * dir, e.dz * dir) });
-  }
   // restaurant sign at the road edge in front of the Rajdhaani (the old Angel Inn)
   const pub = buildings.find(b => b.label === 'Rajdhaani');
   if (pub) {
@@ -689,33 +605,21 @@ export function buildKneesall(data, opts = {}) {
     const dx = cx - n.qx, dz = cz - n.qz, L = Math.hypot(dx, dz);
     sign(W, Math.floor(n.qx + dx / L * (n.road.spec.hw + 4)), Math.floor(n.qz + dz / L * (n.road.spec.hw + 4)), 'KNEESALL CofE PRIMARY ACADEMY', { w: 7, h: 1.8, postH: 4, style: 'school', twoPosts: true, face: Math.atan2(-dx, -dz) });
   }
-  // a tractor in Buckshaw Farm's yard, if it's on the map
+  // named farmyards (OpenStreetMap)
   for (const a of area('farmyard')) {
     const [cx, cz] = centroid(a.pts);
-    if (inBounds(cx, cz, 20)) tractor(W, Math.floor(cx), Math.floor(cz));
     if (a.name) labels.push({ name: a.name, x: cx, z: cz, r: 15 });
   }
 
   // ------------------------------------------------------------ building footprints: no studs underneath
   for (const P of buildings) polyCells(P.poly, (x, z) => { const i = G.i(x, z); if (i >= 0) { G.stud[i] = 0; G.top[i] = G.base[i] = P.y; } });
 
-  // ------------------------------------------------------------ paths for traffic and pedestrians
-  const carPath = newark ? clipPath(newark, (x, z) => inBounds(x, z, 2)) : null;
-  const walkRoads = carRoads.filter(paved).map(r => ({ pts: r.pts, off: r.spec.hw + PAVE * 0.55, sides: r.sides === null ? [-1, 1] : r.sides.map(s => (s === 'right' ? 1 : -1)) }))
-    .filter(r => r.pts.some(([x, z]) => Math.hypot(x, z + 40) < 200));
-
+  const newark = chainPolylines(roads.filter(r => r.type === 'primary').map(r => r.pts)).sort((a, b) => polylineLength(b) - polylineLength(a))[0];
   const namedRoads = roads.filter(r => r.name);
   const roadY = (x, z) => terrainY(x, z) + ROAD_TOP;
   let minY = Infinity; for (let i = 0; i < G.base.length; i++) minY = Math.min(minY, G.base[i]);
   G.minY = minY;
-  return { G, W, buildings, roadB, labels, wires, carPath, walkRoads, attribution: data.attribution, newark, namedRoads, terrainY, roadY };
-}
-
-function clipPath(pts, ok) {
-  let best = [], cur = [];
-  for (const p of pts) { if (ok(p[0], p[1])) cur.push(p); else { if (cur.length > best.length) best = cur; cur = []; } }
-  if (cur.length > best.length) best = cur;
-  return best;
+  return { G, W, buildings, roadB, labels, wires, attribution: data.attribution, newark, namedRoads, terrainY, roadY };
 }
 
 // Merge ground cells into row runs. Tops go in the studded/smooth builders; terrace sides (where the
