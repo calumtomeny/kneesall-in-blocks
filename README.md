@@ -6,6 +6,10 @@ A walkable WebGL model of Kneesall, Nottinghamshire, built out of LEGO-style bri
 python3 tools/serve.py        # then open http://localhost:8765
 ```
 
+On a phone or tablet, drag on the left half of the screen to walk and on the right half to look; buttons along the
+bottom stand in for the keys (time, month, weather, sound, map, view, fly, up and down). Touch screens start with a
+lower resolution, a smaller shadow map and no ambient occlusion, as phone graphics chips need it.
+
 ## Data sources
 
 | What | Source | Licence |

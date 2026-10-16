@@ -18,7 +18,9 @@ const nextFrame = () => new Promise(r => { let done = false; const f = () => { i
 
 // ------------------------------------------------------------------ renderer
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-let pixelRatio = Math.min(window.devicePixelRatio, 1.75);
+// phones and tablets start lighter: lower resolution, smaller shadow map, no ambient occlusion
+const TOUCH = matchMedia('(pointer: coarse)').matches;
+let pixelRatio = Math.min(window.devicePixelRatio, TOUCH ? 1.25 : 1.75);
 renderer.setPixelRatio(pixelRatio);
 renderer.setSize(innerWidth, innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -42,7 +44,7 @@ const su = sky.material.uniforms;
 su.turbidity.value = 4; su.rayleigh.value = 1.2; su.mieCoefficient.value = 0.004; su.mieDirectionalG.value = 0.8;
 const sun = new THREE.DirectionalLight(0xffffff, 3);
 sun.castShadow = true;
-sun.shadow.mapSize.set(4096, 4096);
+sun.shadow.mapSize.set(TOUCH ? 2048 : 4096, TOUCH ? 2048 : 4096);
 const SR = 70;
 Object.assign(sun.shadow.camera, { left: -SR, right: SR, top: SR, bottom: -SR, near: 1, far: 600 });
 sun.shadow.bias = -0.0003; sun.shadow.normalBias = 0.04; sun.shadow.radius = 3;
@@ -698,7 +700,12 @@ const keys = {};
 let locked = false;
 addEventListener('keydown', (e) => {
   keys[e.code] = true;
-  if (!started) return;
+  if (e.code === 'Space') e.preventDefault();
+  if (started) command(e.code);
+});
+// a key's command (also the touch buttons')
+function command(code) {
+  const e = { code };
   if (e.code === 'KeyV') { player.third = !player.third; showToast(player.third ? 'Third person' : 'First person'); }
   if (e.code === 'KeyF') { player.fly = !player.fly; player.vy = 0; showToast(player.fly ? 'Fly mode (Space up, C down)' : 'Walking'); }
   if (e.code === 'KeyT') { timeIdx = (timeIdx + 1) % TIMES.length; applyTime(); }
@@ -712,8 +719,13 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyM') $('minimap').classList.toggle('hidden');
   if (e.code === 'KeyO') { aoOn = !aoOn; showToast(aoOn ? 'Ambient occlusion on' : 'Ambient occlusion off'); }
   if (e.code === 'KeyH') $('help').classList.toggle('hidden');
-  if (e.code === 'Space') e.preventDefault();
-});
+}
+// touch buttons along the bottom: a tap runs a key's command; Up and Down are held like Space and C
+for (const b of document.querySelectorAll('#touchbar button')) {
+  const code = b.dataset.key, hold = b.dataset.hold !== undefined;
+  b.addEventListener('pointerdown', (e) => { e.preventDefault(); if (hold) keys[code] = true; else if (started) command(code); });
+  for (const up of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(up, () => { if (hold) keys[code] = false; });
+}
 addEventListener('keyup', (e) => { keys[e.code] = false; });
 let dragging = false;
 addEventListener('mousedown', () => { dragging = true; });
@@ -962,7 +974,7 @@ function updatePlace() {
 }
 
 // ------------------------------------------------------------------ postprocessing
-let composer, gtao, aoOn = true;
+let composer, gtao, aoOn = !TOUCH;
 function setupPost() {
   try {
     const rt = new THREE.WebGLRenderTarget(innerWidth * pixelRatio, innerHeight * pixelRatio, { type: THREE.HalfFloatType, samples: 4 });
