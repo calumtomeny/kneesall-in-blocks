@@ -29,9 +29,8 @@ POI_KEYS = [('highway', 'bus_stop'), ('amenity', 'post_box'), ('amenity', 'bench
             ('place', 'village'), ('natural', 'tree'), ('highway', 'street_lamp'), ('amenity', 'telephone')]
 
 
-def main(src, dst):
-    els = json.load(open(src))['elements']
-    nodes = {e['id']: e for e in els if e['type'] == 'node'}
+def projection():
+    """OSM node -> [x, z] studs from ORIGIN, and a test for points near the baseplate"""
     lat0, lon0 = ORIGIN
     kx = math.cos(math.radians(lat0)) * 111320 / METRES_PER_STUD
     kz = 110540 / METRES_PER_STUD
@@ -41,7 +40,13 @@ def main(src, dst):
 
     def inside(pts, m=200):
         return any(abs(x) < HALF + m and abs(z) < HALF + m for x, z in pts)
+    return xy, inside
 
+
+def main(src, dst):
+    els = json.load(open(src))['elements']
+    nodes = {e['id']: e for e in els if e['type'] == 'node'}
+    xy, inside = projection()
     out = {'attribution': '© OpenStreetMap contributors (ODbL)', 'metresPerStud': METRES_PER_STUD,
            'origin': ORIGIN, 'half': HALF, 'roads': [], 'buildings': [], 'areas': [], 'lines': [], 'pois': []}
     for w in (e for e in els if e['type'] == 'way'):
@@ -69,18 +74,49 @@ def main(src, dst):
             kind = next((v for (k, val), v in LINE_KINDS.items() if t.get(k) == val), None)
             if kind:
                 out['lines'].append({'kind': kind, 'name': t.get('name', ''), 'pts': pts})
-    for n in nodes.values():
-        t = n.get('tags')
-        if not t:
-            continue
-        for k, v in POI_KEYS:
-            if t.get(k) == v:
-                p = xy(n)
-                if inside([p], 0):
-                    out['pois'].append({'kind': v, 'name': t.get('name', ''), 'x': p[0], 'z': p[1]})
+    out['pois'] = pois(els, nodes, xy, inside)
     json.dump(out, open(dst, 'w'), separators=(',', ':'))
     print({k: len(v) for k, v in out.items() if isinstance(v, list)})
 
 
+def pois(els, nodes, xy, inside):
+    """Points of interest, and the gates on roads and paths, each with the direction of the way it closes."""
+    out = []
+    ways = [e for e in els if e['type'] == 'way' and ('highway' in e.get('tags', {}))]
+    # the raw download can list a node twice, once without its tags, so read the tagged copies
+    tagged = {e['id']: e for e in els if e['type'] == 'node' and e.get('tags')}
+    for n in tagged.values():
+        t = n['tags']
+        p = xy(n)
+        if not inside([p], 0):
+            continue
+        for k, v in POI_KEYS:
+            if t.get(k) == v:
+                out.append({'kind': v, 'name': t.get('name', ''), 'x': p[0], 'z': p[1]})
+        if t.get('barrier') in ('gate', 'kissing_gate', 'stile'):
+            w = next((w for w in ways if n['id'] in w['nodes']), None)
+            if not w:
+                continue
+            i = w['nodes'].index(n['id'])
+            a, b = nodes[w['nodes'][max(0, i - 1)]], nodes[w['nodes'][min(len(w['nodes']) - 1, i + 1)]]
+            (ax, az), (bx, bz) = xy(a), xy(b)
+            L = math.hypot(bx - ax, bz - az) or 1
+            g = {'kind': t['barrier'], 'id': n['id'], 'way': w['id'], 'x': p[0], 'z': p[1], 'dir': [round((bx - ax) / L, 3), round((bz - az) / L, 3)]}
+            if 'maxheight' in t:
+                g['maxheight'] = float(t['maxheight'])
+            out.append(g)
+    return out
+
+
 if __name__ == '__main__':
-    main(*sys.argv[1:3])
+    if '--pois-only' in sys.argv:
+        # refresh the points of interest in an existing data file, leaving the LIDAR and OS layers alone
+        src, dst = [a for a in sys.argv[1:] if not a.startswith('--')]
+        els = json.load(open(src))['elements']
+        nodes = {e['id']: e for e in els if e['type'] == 'node'}
+        data = json.load(open(dst))
+        data['pois'] = pois(els, nodes, *projection())
+        json.dump(data, open(dst, 'w'), separators=(',', ':'))
+        print(len(data['pois']), 'points of interest')
+    else:
+        main(*sys.argv[1:3])

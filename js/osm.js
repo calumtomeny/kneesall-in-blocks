@@ -689,6 +689,62 @@ export function buildKneesall(data) {
     if (p.kind === 'bench') bench(W, px, pz);
   }
 
+  // gates on roads and paths (OpenStreetMap barrier=gate and kissing_gate), turned across the way they close: posts and
+  // five-barred leaves, a lattice bar over the way where OSM gives a maxheight, and for a kissing gate a small railed pen
+  // beside the path. What Street View shows of them is in survey.json "barriers" (`osm` node id: `material`, `leaves`,
+  // and `open`, the compass direction the leaves stand open towards); unseen ones are a closed plain timber gate.
+  const GATE_COL = { galvanised: PAL.lbg, timber: PAL.reddishBrown, weathered: PAL.darkTan }, VY = KWALL * BRICK;
+  for (const p of data.pois) {
+    if (p.kind !== 'gate' && p.kind !== 'kissing_gate') continue;
+    const seen = data.survey?.barriers?.find(b => b.osm === p.id) ?? {};
+    const road = roads.find(r => r.id === p.way);
+    const [dx, dz] = p.dir, ax = -dz, az = dx, gx = p.x, gz = p.z;
+    const cx = Math.floor(gx), cz = Math.floor(gz);
+    if (!inBounds(cx, cz, 2)) continue;
+    const c = col(GATE_COL[seen.material] ?? GATE_COL.timber);
+    const kiss = p.kind === 'kissing_gate', half = kiss ? 1.1 : Math.max(1.6, (road?.spec.hw ?? 1.5) + 0.3);
+    const n = seen.leaves ?? 1, H = 1.2 * VY, F = seen.open !== undefined ? seen.open * Math.PI / 180 : null;
+    const y0 = G.heightAt(gx, gz) - G.baseAt(cx, cz);
+    W.extras.push(({ at }) => {
+      const b = at(cx, cz);
+      const P = (a, o, y) => new THREE.Vector3(gx + ax * a + dx * o, y0 + y, gz + az * a + dz * o);
+      const rod = (p0, p1, r = 0.06) => {
+        const d = p1.clone().sub(p0), m = new THREE.Matrix4().compose(p0.clone().add(p1).multiplyScalar(0.5), new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize()), new THREE.Vector3(1, 1, 1));
+        b.geom(new THREE.CylinderGeometry(r, r, d.length(), 6, 1), m, c);
+      };
+      const post = (a, o, h) => rod(P(a, o, 0), P(a, o, h), 0.2);
+      // a leaf from its hinge along the unit vector (ua, uo) in (across, along) coordinates, `len` long
+      const leaf = (a, o, ua, uo, len) => {
+        const Q = (t, y) => P(a + ua * len * t, o + uo * len * t, y);
+        for (let i = 0; i < 5; i++) rod(Q(0, 0.35 + i * (H - 0.6) / 4), Q(1, 0.35 + i * (H - 0.6) / 4));
+        rod(Q(0, 0.3), Q(0, H)); rod(Q(1, 0.3), Q(1, H)); rod(Q(0, 0.35), Q(0.6, H - 0.25));
+      };
+      if (kiss) {
+        // the pen: posts at its corners, rails along three sides, and the leaf swinging inside it
+        for (const [a, o] of [[-half, -half], [-half, half], [half, -half], [half, half]]) post(a, o, H + 0.2);
+        for (const y of [0.6, H * 0.55, H]) { rod(P(-half, -half, y), P(-half, half, y)); rod(P(-half, half, y), P(0, half, y)); rod(P(-half, -half, y), P(0, -half, y)); }
+        leaf(half, -half, 0, 1, 2 * half * 0.9);
+        return;
+      }
+      const len = 2 * half / n;
+      for (const s of [-1, 1]) post(s * half, 0, H + 0.4);
+      for (let i = 0; i < n; i++) {
+        const s = n === 1 ? -1 : i === 0 ? -1 : 1, hinge = s * half;
+        if (F === null) { leaf(hinge, 0, -s, 0, len - 0.1); continue; }
+        // standing open: swung back from the hinge towards compass direction `open`, along the way
+        const fo = Math.sin(F) * dx - Math.cos(F) * dz >= 0 ? 1 : -1;
+        leaf(hinge, 0.2 * fo, 0, fo, len - 0.1);
+      }
+      if (p.maxheight) {
+        // a height barrier: a lattice bar between two tall posts just outside the gate posts
+        const hb = p.maxheight * VY, s = half + 0.5;
+        for (const t of [-1, 1]) post(t * s, -0.3, hb + 1.1);
+        rod(P(-s, -0.3, hb), P(s, -0.3, hb), 0.08); rod(P(-s, -0.3, hb + 1), P(s, -0.3, hb + 1), 0.08);
+        for (let k = 0; k < 8; k++) rod(P(-s + 2 * s * k / 8, -0.3, k % 2 ? hb + 1 : hb), P(-s + 2 * s * (k + 1) / 8, -0.3, k % 2 ? hb : hb + 1), 0.05);
+      }
+    });
+  }
+
   // restaurant sign at the road edge in front of the Rajdhaani (the old Angel Inn)
   const pub = buildings.find(b => b.label === 'Rajdhaani');
   if (pub) {
