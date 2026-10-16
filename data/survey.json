@@ -117,13 +117,16 @@
   "details": [
     {
       "at": [53.169543, -0.947807],
-      "wall": "darkBrick",
+      "wall": "brownBrick",
       "roof": "slate",
       "front": "w",
-      "windows": [3, 3],
+      "windows": [5, 3],
+      "doors": [0.67],
       "chimneys": [0.05, 0.5],
-      "notes": "Cottage on the pavement, E side of Newark Road; two big stacks",
-      "source": "Street View (imagery as served 2026-10-15)"
+      "frame": "sandGreen",
+      "door": "sandGreen",
+      "notes": "Cottage on the pavement, E side of Newark Road; two big stacks; old brown-red brick, dark weathered pantiles, sage-green casements, three windows on each floor of the two-storey part and the door and two windows in the lower range to the south",
+      "source": "Street View (imagery as served 2026-10-15, 2026-10-16)"
     },
     {
       "at": [53.168679, -0.947642],
@@ -295,23 +298,28 @@
     {"at": [53.17156, -0.950103], "roof": "brownTile", "wall": "redBrick", "front": 291, "doors": [0.5], "windows": [3, 3], "chimneys": [0.86], "porch": "lean", "frame": "white", "notes": "Two-storey detached house, integral garage with a white door, tiled lean-to porch roof across the front, ivy; rubble-stone garden wall to the road", "source": "aerial photograph (Google, imagery 2026) for the roof; Street View from Sington Road (imagery as served 2026-10-15)", "garages": [[0.12, "white"]]},
     {"at": [53.171682, -0.949693], "roof": "slate", "source": "aerial photograph (Google, imagery 2026)"},
     {"at": [53.17061, -0.94885], "roof": "slate", "source": "aerial photograph (Google, imagery 2026)"},
-    {"at": [53.170234, -0.950621], "roof": "brownTile", "storeys": 1, "windows": [0, 0], "notes": "Garage and store, white double garage doors", "source": "Street View (imagery as served 2026-10-15)"},
+    {"at": [53.170234, -0.950621], "roof": "brownTile", "wall": "darkTan", "front": 98, "storeys": 1, "doors": [], "windows": [0, 0], "garages": [[0.52, "white"], [0.75, "white"]], "notes": "Garage and store under old brown plain tiles: weathered timber boarding on a brick base, open boarded bays at the south end, two white up-and-over doors", "source": "Street View from Eakring Road (imagery as served 2026-10-15, 2026-10-16)"},
     {
       "at": [53.170164, -0.950215],
       "wall": "render",
       "front": "w",
+      "doors": [],
+      "windows": [1, 0],
       "frame": "brown",
-      "notes": "Off-white render, red-brick window heads, dark brown windows",
-      "source": "Street View (imagery as served 2026-10-15)"
+      "notes": "Off-white render, red-brick window heads, dark brown windows; blank gable to Eakring Road but for one wide three-light window",
+      "source": "Street View (imagery as served 2026-10-15, 2026-10-16)"
     },
     {
       "at": [53.170759, -0.949309],
       "roof": "pantile",
+      "front": 207,
+      "doors": [],
+      "windows": [2, 0],
       "label": "Country Kids Day Nursery",
-      "notes": "Long single-storey red-brick range, white windows",
-      "source": "Street View (imagery as served 2026-10-15)"
+      "notes": "Long single-storey red-brick range, white windows; its hipped end to Newark Road has a pointed-arched mullioned window and a white casement, with a flat-roofed extension alongside and a black post-and-rail fence to the car park",
+      "source": "Street View (imagery as served 2026-10-15, 2026-10-16)"
     },
-    {"at": [53.17037, -0.949323], "roof": "pantile", "windows": [0, 0], "notes": "Red-brick barn by the road, blank wall to the road", "source": "Street View (imagery as served 2026-10-15)"},
+    {"at": [53.17037, -0.949323], "roof": "pantile", "front": 26, "doors": [], "windows": [0, 0], "notes": "Small red-brick barn by the road, ivy on the blank long wall to the road and on the east gable", "source": "Street View (imagery as served 2026-10-15, 2026-10-16)"},
     {"at": [53.170226, -0.949844], "roof": "sheetLight", "notes": "Grey sheeted roofs", "source": "aerial photograph (Google, imagery 2026)"},
     {
       "at": [53.169063, -0.947423],
@@ -374,7 +382,8 @@
     {"osm": 318949851, "side": "right", "from": [53.169917, -0.947978], "to": [53.1695, -0.9479], "h": 0.8, "wall": "redBrick", "cap": "redBrick", "notes": "The same low brick wall and fence along the grounds of the big house", "source": "Street View from Newark Road (imagery as served 2026-10-16)"},
     {"osm": 318949851, "side": "left", "from": [53.16922, -0.94771], "to": [53.16905, -0.94762], "h": 1.8, "wall": "brown", "cap": "brown", "notes": "New close-boarded timber fence on top of the bank beside the Fortune Close houses", "source": "Street View from Newark Road (imagery as served 2026-10-16)"},
     {"osm": 318949852, "side": "right", "from": [53.170231, -0.948999], "to": [53.170352, -0.949048], "h": 1.8, "wall": "brown", "cap": "brown", "notes": "Close-boarded timber fence in front of the rendered house, west side of Newark Road", "source": "Street View from Newark Road (imagery as served 2026-10-16)"},
-    {"osm": 145012297, "side": "left", "from": [53.17233, -0.948085], "to": [53.17234, -0.94782], "h": 1.0, "wall": "redBrick", "cap": "redBrick", "notes": "The brick wall continues east of the gate along the north side of Ossington Road", "source": "Street View from Ossington Road (imagery as served 2026-10-16)"}
+    {"osm": 145012297, "side": "left", "from": [53.17233, -0.948085], "to": [53.17234, -0.94782], "h": 1.0, "wall": "redBrick", "cap": "redBrick", "notes": "The brick wall continues east of the gate along the north side of Ossington Road", "source": "Street View from Ossington Road (imagery as served 2026-10-16)"},
+    {"osm": 318949852, "side": "left", "from": [53.170506, -0.949151], "to": [53.170429, -0.94908], "h": 1.0, "wall": "stone", "cap": "stone", "notes": "Grey rubble-stone wall with shrubs above, north-east side of Newark Road, from the nursery car park to the drive of the house north-west of the churchyard", "source": "Street View from Newark Road (imagery as served 2026-10-16)"}
   ],
   "signs": [
     {"osm": 231965138, "side": "right", "at": [53.167722, -0.945967], "face": 110, "style": "village", "text": "KNEESALL", "notes": "Pictorial village sign on two posts on the south-west verge, for traffic from Newark", "source": "Street View on Newark Road (A616) south-east of the village (imagery as served 2026-10-16)"},

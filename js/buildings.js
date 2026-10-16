@@ -284,7 +284,11 @@ export function lidarBuilding(W, { cells, top, roofCol, wallCol }, o = {}) {
     if (r === doorRun && o.frontWindows) {
       const even = (n) => Array.from({ length: n }, (_, k) => slotAt(r, (k + 0.5) / n));
       const [g, u] = o.frontWindows;
-      slots = even(g).filter(a => doors.every(d => Math.abs(a - d) >= 3)); upper = even(u);
+      slots = even(g).filter(a => doors.every(d => Math.abs(a - d) >= 3));
+      // upstairs windows share out the stretch of the front that has an upper storey (not a lower wing's)
+      const tall = [];
+      for (let a = r.start; a < r.end; a++) if (tallAt(r, a, 10)) tall.push(a);
+      upper = tall.length && tall.length < r.end - r.start ? Array.from({ length: u }, (_, k) => tall[Math.floor((k + 0.5) / u * tall.length)]) : even(u);
       if (garages.length) {
         // the ground-floor windows share out what the garage doors leave of the front
         const free = [];
