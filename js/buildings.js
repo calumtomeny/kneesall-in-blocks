@@ -297,8 +297,11 @@ export function lidarBuilding(W, { cells, top, roofCol, wallCol }, o = {}) {
         slots = Array.from({ length: g }, (_, k) => free[Math.floor((k + 0.5) / g * free.length)]).filter(a => a !== undefined);
       }
     }
-    if (o.windows !== false) for (let f = 0; f < 3; f++) for (const a of f === 0 ? slots : upper) {
-      if ((f === 0 && (doors.includes(a) || inGarage(a))) || !tallAt(r, a, f * 6 + 4)) continue;
+    if (o.windows !== false) for (let f = 0; f < 3; f++) for (let a of f === 0 ? slots : upper) {
+      if (f === 0 && (doors.includes(a) || inGarage(a))) continue;
+      // an upstairs window under a narrow front gable may need to slide a stud to fit under its peak
+      if (!tallAt(r, a, f * 6 + 4)) a = f > 0 ? [a - 1, a + 1].find(b => b >= r.start && b < r.end && tallAt(r, b, f * 6 + 4)) : undefined;
+      if (a === undefined) continue;
       windowIn(W, axis, r.fixed, a, 2, f * 6 + 2, 3, { frame: o.frame, lintel: o.lintel });
     }
     for (const g of garages) {

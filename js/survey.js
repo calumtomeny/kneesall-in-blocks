@@ -38,7 +38,7 @@ export function fittedBuilding(fit, bng, o, front) {
 }
 
 // Small gables rising from the front eaves of the main roof (survey.json details "gablets": fractions along the
-// front, left to right as seen from it), each 2.6 m wide with its own little ridge running back into the main roof
+// front, left to right as seen from it), each 3 m wide with its own little ridge running back into the main roof
 function gablets(fit, fs, front) {
   const area = (p) => (p.u[1] - p.u[0]) * (p.w[1] - p.w[0]);
   const main = fit.parts.reduce((a, b) => (area(b) > area(a) ? b : a));
@@ -53,7 +53,7 @@ function gablets(fit, fs, front) {
   return fs.map(f => {
     const t = ltr ? a0 + f * (a1 - a0) : a1 - f * (a1 - a0);
     const back = face[1] === '1' ? [out - depth, out] : [out, out + depth];
-    return { [A]: [t - 1.3, t + 1.3], [C]: back, roof: 'gable', along: C, eaves: main.eaves, top: main.eaves + 1.2 };
+    return { [A]: [t - 1.5, t + 1.5], [C]: back, roof: 'gable', along: C, eaves: main.eaves, top: main.eaves + 1.2 };
   });
 }
 
