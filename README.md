@@ -23,8 +23,7 @@ python3 tools/serve.py        # then open http://localhost:8765
 Nothing is made up. Where no data says what something looks like, it gets a plain default: red brick walls and
 white front doors on houses nobody has looked at, and regularly spaced windows on walls not seen from a road. The
 churchyard's headstones are laid out in rows, as the real ones aren't mapped. Things that exist but whose
-positions aren't known are left out: street lamps, village and speed-limit signs, and the cars, people and
-animals.
+positions aren't known are left out: street lamps, most road signs, and the cars, people and animals.
 
 ### Roof materials
 
@@ -63,6 +62,8 @@ its `at` point, and every entry says where it was seen.
 `walls` are garden and boundary walls (height, brick or stone, coping, piers). A wall along a road gives the road's
 OpenStreetMap way id (`osm`), the `side` of it and `from`/`to` points, and stands at the back of the modelled pavement;
 any other wall is a list of points. The 1 m LIDAR does not show walls this low, so they come from Street View.
+`signs` are the road signs seen in Street View where roads enter the village (the pictorial village sign, name
+plates and speed limits), each placed by a road the same way and turned to face compass direction `face`.
 
 ## Regenerating `data/`
 

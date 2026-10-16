@@ -189,9 +189,32 @@ function signCanvas(s) {
   const x = cv.getContext('2d');
   const font = (sz, w = 'bold') => `${w} ${sz}px "Transport", "Helvetica Neue", Arial, sans-serif`;
   x.textAlign = 'center'; x.textBaseline = 'middle';
-  // the Rajdhaani's board is white with maroon lettering, the school's dark blue with white (Street View)
-  const bg = { pub: '#ffffff', school: '#0a3463', bus: '#ffffff' }[s.style] ?? '#fff';
-  const fg = { pub: '#7a1f2a', school: '#ffffff' }[s.style] ?? '#111';
+  if (s.style === 'speed') {
+    // speed limit roundel: white disc, red ring, black number
+    x.fillStyle = '#fff'; x.beginPath(); x.arc(pxW / 2, pxH / 2, pxW / 2 - 4, 0, 7); x.fill();
+    x.strokeStyle = '#c91a09'; x.lineWidth = pxW * 0.1; x.beginPath(); x.arc(pxW / 2, pxH / 2, pxW / 2 - pxW * 0.07, 0, 7); x.stroke();
+    x.fillStyle = '#111'; x.font = font(pxW * 0.42); x.fillText(s.text, pxW / 2, pxH / 2 + 8);
+    return { cv, round: true };
+  }
+  if (s.style === 'village') {
+    // Kneesall's pictorial village sign: a painted oval (fields, sky and the church tower) over the name
+    x.fillStyle = '#1b2a1f'; x.fillRect(0, 0, pxW, pxH);
+    x.fillStyle = '#f3ecd8'; x.fillRect(12, 12, pxW - 24, pxH - 24);
+    const cx = pxW / 2, cy = pxH * 0.4, rx = pxW * 0.38, ry = pxH * 0.3;
+    x.save(); x.beginPath(); x.ellipse(cx, cy, rx, ry, 0, 0, 7); x.clip();
+    x.fillStyle = '#9cc6e6'; x.fillRect(0, 0, pxW, pxH);
+    x.fillStyle = '#5e9a3f'; x.fillRect(0, cy + ry * 0.25, pxW, pxH);
+    x.fillStyle = '#b9b2a1'; x.fillRect(cx - pxW * 0.05, cy - ry * 0.6, pxW * 0.1, ry * 0.9);
+    for (let i = 0; i < 4; i++) x.fillRect(cx - pxW * 0.05 + i * pxW * 0.03, cy - ry * 0.7, pxW * 0.015, ry * 0.12);
+    x.restore();
+    x.strokeStyle = '#1b2a1f'; x.lineWidth = 8; x.beginPath(); x.ellipse(cx, cy, rx, ry, 0, 0, 7); x.stroke();
+    x.fillStyle = '#111'; x.font = font(pxH * 0.13); x.fillText(s.text, pxW / 2, pxH * 0.83);
+    return { cv };
+  }
+  // the Rajdhaani's board is white with maroon lettering, the school's dark blue with white, Kneesall's
+  // name plate on the A616 dark grey-blue with white (Street View)
+  const bg = { pub: '#ffffff', school: '#0a3463', bus: '#ffffff', place: '#3a4654' }[s.style] ?? '#fff';
+  const fg = { pub: '#7a1f2a', school: '#ffffff', place: '#ffffff' }[s.style] ?? '#111';
   x.fillStyle = bg; x.fillRect(0, 0, pxW, pxH);
   x.strokeStyle = fg; x.lineWidth = 10; x.strokeRect(14, 14, pxW - 28, pxH - 28);
   x.fillStyle = fg;
@@ -209,16 +232,19 @@ function addSigns(world, parent) {
   for (const s of world.signs || []) {
     const { cv, round } = signCanvas(s);
     const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+    if (round) { tex.center.set(0.5, 0.5); tex.rotation = Math.PI / 2; }   // a disc's cap is mapped a quarter turn round
     const face = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.4, transparent: !!round, alphaTest: round ? 0.5 : 0 });
     const edge = new THREE.MeshStandardMaterial({ color: 0xa0a5a9, roughness: 0.4 });
     const geo = round ? new THREE.CylinderGeometry(s.w / 2, s.w / 2, 0.2, 32) : new THREE.BoxGeometry(s.w, s.h, 0.2);
     let m;
     if (round) {
       const fm = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.4 });
-      m = new THREE.Mesh(geo, [edge, fm, fm]); m.rotation.x = Math.PI / 2;
+      m = new THREE.Mesh(geo, [edge, fm, s.oneSided ? edge : fm]); m.rotation.x = Math.PI / 2;
       const g = new THREE.Group(); g.add(m); m = g;
-    } else m = new THREE.Mesh(geo, [edge, edge, edge, edge, face, face]);
-    m.position.set(s.x + 0.5, (s.postH ?? 4.5) - s.h / 2 + 0.3 + (world.baseAt ? world.baseAt(s.x, s.z) : 0), s.z + 0.5);
+    } else m = new THREE.Mesh(geo, [edge, edge, edge, edge, face, s.oneSided ? edge : face]);   // road signs have plain backs
+    // the panel stands just in front of its post(s)
+    const fx = Math.sin(s.face ?? 0) * 0.25, fz = Math.cos(s.face ?? 0) * 0.25;
+    m.position.set(s.x + 0.5 + fx, (s.postH ?? 4.5) - s.h / 2 + 0.3 + (world.baseAt ? world.baseAt(s.x, s.z) : 0), s.z + 0.5 + fz);
     m.rotation.y = s.face ?? 0;
     m.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     parent.add(m);
