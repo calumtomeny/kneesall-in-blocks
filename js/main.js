@@ -211,8 +211,11 @@ function signCanvas(s) {
     return { cv, round: true };
   }
   if (s.style === 'giveway' || s.style === 'direction' || s.style === 'warning') {
+    // a warning on a yellow backing board is a plain rectangle with the triangle printed on it
+    const board = s.backing ? (x.fillStyle = s.backing, x.fillRect(0, 0, pxW, pxH), true) : false;
+    const S = board ? { ...s, w: s.w * 0.8, h: s.h * 0.8 } : s;
     // shaped plates: draw each outline (sign units, y up) onto the canvas, red-bordered triangle or black-bordered flags
-    const P = (px, py) => [(px / s.w + 0.5) * pxW, (0.5 - py / s.h) * pxH];
+    const P = (px, py) => [(px / s.w + 0.5) * pxW, (0.5 - py / s.h) * pxH - (board ? pxH * 0.02 : 0)];
     const path = (poly) => { x.beginPath(); poly.forEach(([a, b], i) => x[i ? 'lineTo' : 'moveTo'](...P(a, b))); x.closePath(); };
     x.lineJoin = 'round';
     if (s.style === 'giveway') {
@@ -225,18 +228,20 @@ function signCanvas(s) {
     }
     if (s.style === 'warning') {
       // red-bordered warning triangle; `text` names the symbol
-      const poly = signShape(s)[0];
+      const poly = signShape(S)[0];
       path(poly); x.fillStyle = '#c91a09'; x.fill();
       x.save(); x.translate(pxW / 2, pxH * 0.6); x.scale(0.68, 0.68); x.translate(-pxW / 2, -pxH * 0.6); path(poly); x.restore();
       x.fillStyle = '#fff'; x.fill();
       x.fillStyle = '#111';
+      const k = board ? 0.8 : 1; x.save(); x.translate(pxW / 2, pxH * 0.6); x.scale(k, k); x.translate(-pxW / 2, -pxH * 0.6);
       if (s.text === 'crossroads') {
         // the through road (thicker, pointed) crossed by the side roads
         const cx = pxW / 2, y0 = pxH * 0.36, y1 = pxH * 0.84, t = pxW * 0.07;
         x.beginPath(); x.moveTo(cx, y0 - t * 0.6); x.lineTo(cx + t * 0.6, y0 + t * 0.4); x.lineTo(cx + t * 0.6, y1); x.lineTo(cx - t * 0.6, y1); x.lineTo(cx - t * 0.6, y0 + t * 0.4); x.closePath(); x.fill();
         x.fillRect(cx - pxW * 0.17, pxH * 0.6, pxW * 0.34, t * 0.75);
       }
-      return { cv, shape: true };
+      x.restore();
+      return { cv, shape: !board };
     }
     const names = s.text.split('|');
     signShape(s).forEach((poly, i) => {

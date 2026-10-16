@@ -628,7 +628,7 @@ export function buildKneesall(data) {
       : r.spec.hw + ((r.sides === null ? !!r.spec.pave : r.sides.includes(sg.side)) ? PAVE : 0) + (sg.against === 'wall' ? -0.5 : 1);
     const F = sg.face * Math.PI / 180;
     sign(W, Math.floor(n.qx - uz * s * off), Math.floor(n.qz + ux * s * off), sg.text,
-      { ...SIGNS[sg.style], ...(sg.postH ? { postH: sg.postH } : {}), style: sg.style, face: Math.PI - F, oneSided: true });
+      { ...SIGNS[sg.style], ...(sg.postH ? { postH: sg.postH } : {}), ...(sg.w ? { w: sg.w, h: sg.h } : {}), backing: sg.backing, style: sg.style, face: Math.PI - F, oneSided: true });
   }
 
   // street lights seen in Street View (survey.json "lamps"): by a mapped road like the signs, at the kerb edge of the
