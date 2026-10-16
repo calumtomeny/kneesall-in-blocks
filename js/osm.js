@@ -13,7 +13,7 @@ import { World, Builder, PAL, BRICK, PLATE, F_TILE, F_HIDDEN, F_NOCOLLIDE, F_PLA
 import { R, tree, hedge, postBox, bench, sign, streetLight } from './parts.js';
 import { warMemorial, headstone } from './landmarks.js';
 import { buildingFromPolygon, buildingFromRect, churchFromPolygon, houseStyle, STYLES, MATERIALS, roofMaterial } from './buildings.js';
-import { surveyedBuildings, surveyGrounds, surveyRoads, fittedBuilding } from './survey.js';
+import { surveyedBuildings, surveyedChurch, surveyGrounds, surveyRoads, fittedBuilding } from './survey.js';
 import { KWALL } from './roofs.js';
 import { polyCells, pointInPoly, lineCells, distToPolyline, polylineLength, pointAlong, chainPolylines, ribbonY, dashesY, centroid, polyArea } from './geo.js';
 
@@ -237,7 +237,7 @@ export function buildKneesall(data) {
       if (!inBounds(cx, cz, 6) || replaced(b.pts)) continue;
       const osm = data.buildings.find(o => pointInPoly(cx, cz, o.pts) || pointInPoly(...centroid(o.pts), b.pts));
       const name = b.name || osm?.name || '';
-      if (/church/i.test(name) && !/school/i.test(name)) { addBuilding(churchFromPolygon(b.pts)); continue; }
+      if (/church/i.test(name) && !/school/i.test(name)) { addBuilding((survey && surveyedChurch(survey, data.bng)) || churchFromPolygon(b.pts)); continue; }
       let o = b === oldHall ? { ...OLD_HALL } : b === cottage ? { ...OLD_HALL_COTTAGE } : styleFor(b.pts, name, osm?.type, cx, cz, b);
       // garages and sheds the OS outlines miss (survey.json "lidarBuildings"): one storey, a wide door, no windows
       if (b.lidarOnly) o = { ...o, floors: 1, chimneys: 0, windows: false, porch: false };

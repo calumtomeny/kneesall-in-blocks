@@ -4,6 +4,7 @@
 import { World, PAL } from './bricks.js';
 import { Placed, lidarBuilding, MATERIALS, materialFor } from './buildings.js';
 import { layersFor } from './roofs.js';
+import { churchBuilding } from './landmarks.js';
 
 const SIDES = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] };   // survey sides -> local stud directions
 
@@ -27,6 +28,30 @@ export function surveyedBuildings(survey, bng) {
     if (P) P.survey = s.name;
     return P;
   }).filter(Boolean);
+}
+
+// St Bartholomew's from its measured parts (survey.json "church"), in a grid turned to the church: x along u (east),
+// z along -w (south)
+export function surveyedChurch(survey, bng) {
+  const c = survey.church;
+  if (!c) return null;
+  const at = framer(bng, c.frame);
+  const [x0, z0] = at(0, 0), [x1, z1] = at(1, 0);
+  const k = Math.hypot(x1 - x0, z1 - z0), a = Math.atan2(z1 - z0, x1 - x0);
+  const parts = Object.fromEntries(Object.entries(c.parts).map(([name, p]) =>
+    [name, { ...p, x: [Math.round(p.u[0] * k), Math.round(p.u[1] * k) - 1], z: [Math.round(-p.w[1] * k), Math.round(-p.w[0] * k) - 1] }]));
+  const mx = Math.min(...Object.values(parts).map(p => p.x[0])) - 1, mz = Math.min(...Object.values(parts).map(p => p.z[0])) - 1;
+  for (const p of Object.values(parts)) { p.x = p.x.map(v => v - mx); p.z = p.z.map(v => v - mz); }
+  const W = new World();
+  churchBuilding(W, parts);
+  const [ox, oz] = at(mx / k, -mz / k);
+  const P = new Placed(W, ox, oz, a);
+  // its outline: every stud with something standing on it
+  const cells = new Set();
+  for (const key of W.vox.keys()) { const [x, y, z] = World.decode(key); if (y === 0) cells.add(x + ',' + z); }
+  P.poly = outline(cells).map(([x, z]) => P.toWorld(x, z));
+  P.roofCol = PAL.dbg; P.label = c.name;
+  return P;
 }
 
 // A building measured by tools/fit_buildings.py, styled like any other (o), with its door towards `front`.

@@ -1,5 +1,5 @@
 {
-  "about": "Buildings measured by hand. Each replaces any Ordnance Survey outline it overlaps. Parts are rectangles in metres in a local grid: origin (E, N) on the British National Grid, u along `bearing` (degrees clockwise from grid north), w at right angles to the left of u. Heights are metres above the ground: `eaves` where the roof starts, `top` the ridge. Roof types: gable (ridge runs `along` u or w), lean (falls towards the `low` side: u0, u1, w0 or w1), hip. `door` is the side the main door faces (n = +w, s = -w, e = +u, w = -u). Materials: see MATERIALS in js/buildings.js. `details` record what was seen of a building (matched by the point `at`, lat/lon, inside its outline): wall/roof/groundWall/plinth materials, `front` (compass side facing the road, letter or degrees), `doors` and `chimneys` as fractions 0..1 left to right as seen from the front (chimneys along the main ridge), `blank` compass sides seen to have no windows or doors, `windows` [ground, upper] counts on the front (or, for either floor, a list of fractions placing each window, or null where that floor couldn't be seen), `storeys`, `label`. `roads` entries with `osm` (an OpenStreetMap way id) set `sidewalk` (both/left/right/no, sides relative to the way's direction) where OSM has no sidewalk tag. `lidarBuildings` are garages and sheds that the Ordnance Survey outlines miss: each `at` point picks a building-shaped blob of the LIDAR, confirmed on an aerial photograph, which tools/fit_buildings.py measures like any other building.",
+  "about": "Buildings measured by hand. Each replaces any Ordnance Survey outline it overlaps. Parts are rectangles in metres in a local grid: origin (E, N) on the British National Grid, u along `bearing` (degrees clockwise from grid north), w at right angles to the left of u. Heights are metres above the ground: `eaves` where the roof starts, `top` the ridge. Roof types: gable (ridge runs `along` u or w), lean (falls towards the `low` side: u0, u1, w0 or w1), hip. `door` is the side the main door faces (n = +w, s = -w, e = +u, w = -u). Materials: see MATERIALS in js/buildings.js. `details` record what was seen of a building (matched by the point `at`, lat/lon, inside its outline): wall/roof/groundWall/plinth materials, `front` (compass side facing the road, letter or degrees), `doors` and `chimneys` as fractions 0..1 left to right as seen from the front (chimneys along the main ridge), `blank` compass sides seen to have no windows or doors, `windows` [ground, upper] counts on the front (or, for either floor, a list of fractions placing each window, or null where that floor couldn't be seen), `storeys`, `label`. `roads` entries with `osm` (an OpenStreetMap way id) set `sidewalk` (both/left/right/no, sides relative to the way's direction) where OSM has no sidewalk tag. `church` gives St Bartholomew's tower, nave, aisles, chancel and porch measured from the LIDAR (u, w ranges; eaves and top in metres). `lidarBuildings` are garages and sheds that the Ordnance Survey outlines miss: each `at` point picks a building-shaped blob of the LIDAR, confirmed on an aerial photograph, which tools/fit_buildings.py measures like any other building.",
   "buildings": [
     {
       "name": "Old Hall Cottage",
@@ -81,6 +81,21 @@
     },
     {"name": "New house at the corner of Ossington Road and School Lane", "notes": "Built after the 2022 LIDAR survey and missing from the OS outlines. Large hipped roof with roof lights and solar panels on the west slope. The outline is measured from the aerial photograph; the heights are assumed (rooms in the roof, so a low eaves line), as Street View predates the house.", "sources": "aerial photograph (Google, imagery 2026), measured 2026-10-15", "frame": {"E": 470529.57, "N": 364410.23, "bearing": 89.2}, "wall": "redBrick", "roof": "brownTile", "door": "e", "parts": [{"u": [-6.7, 8.0], "w": [-8.0, 6.6], "roof": "hip", "eaves": 3.0, "top": 7.0}, {"u": [-3.1, 1.1], "w": [6.6, 8.6], "roof": "hip", "eaves": 3.0, "top": 4.5}], "chimneys": [], "solar": {"face": 270, "span": [0.25, 0.75]}}
   ],
+  "church": {
+    "name": "St Bartholomew's Church",
+    "notes": "West tower with a panelled parapet and corner pinnacles; nave with a clerestory under a low-pitched roof; lean-to aisles both sides; chancel with a near-flat roof and pinnacles on the east gable; south porch; a flat-roofed boiler house in the angle of the tower and the north aisle. Doors and windows are those the listing describes, spaced evenly along each wall. Each part's outline is where the LIDAR height crosses half way between the part and what is next to it (sampled every 0.5 m along and across the church), so roofs include their eaves.",
+    "sources": "EA LIDAR 2022 last return (1 m); Historic England listing; clock on the west face from the Southwell & Nottingham Church History Project",
+    "frame": {"E": 470417.06, "N": 364196.43, "bearing": 111.3},
+    "parts": {
+      "tower": {"u": [-16.8, -10.5], "w": [-3.1, 3.9], "top": 17.5},
+      "nave": {"u": [-10.5, 4.6], "w": [-2.85, 3.85], "eaves": 8.3, "top": 9.0},
+      "northAisle": {"u": [-10.2, 5.2], "w": [3.85, 7.95], "eaves": 5.1, "top": 6.1},
+      "southAisle": {"u": [-10.0, 5.2], "w": [-6.4, -2.85], "eaves": 5.1, "top": 6.1},
+      "chancel": {"u": [4.6, 17.75], "w": [-3.0, 4.45], "eaves": 6.6, "top": 7.2},
+      "porch": {"u": [-6.4, -3.7], "w": [-9.3, -6.4], "eaves": 2.5, "top": 3.9},
+      "boilerHouse": {"u": [-15.2, -12.0], "w": [3.9, 7.1], "top": 2.7}
+    }
+  },
   "grounds": [
     {
       "notes": "Gravel yard between the barns, the house and the outbuilding",

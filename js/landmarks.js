@@ -1,88 +1,113 @@
 // Landmark builds: St Bartholomew's Church, war memorial, headstones.
 import * as THREE from 'three';
 import { PAL, BRICK, F_TILE, F_HIDDEN, F_NOCOLLIDE, col } from './bricks.js';
-import { R, house, windowIn, doorIn, gableRoof, bench } from './parts.js';
+import { R, house, windowIn, doorIn, bench } from './parts.js';
+import { layersFor } from './roofs.js';
 
 export function stone() { const r = R(); return r < 0.72 ? PAL.lbg : r < 0.9 ? PAL.tan : PAL.darkTan; }
 
-// St Bartholomew's: west tower, nave with aisles + clerestory, chancel, south porch.
-// Local footprint x -7..41, z 15..42 (tower at the west/low-x end).
-export function churchBuilding(W) {
-  // Tower (west), 3 stages, battlements + pinnacles. x -6..3, z 21..30
-  const tx0 = -6, tz0 = 21, T = 10, TH = 30;
-  for (let y = 0; y < TH; y++) for (let i = 0; i < T; i++) {
-    const c = (y === 10 || y === 20 || y === 0) ? PAL.dbg : stone();
-    W.set(tx0 + i, y, tz0, c); W.set(tx0 + i, y, tz0 + T - 1, c); W.set(tx0, y, tz0 + i, c); W.set(tx0 + T - 1, y, tz0 + i, c);
+// St Bartholomew's as the LIDAR measures it (survey.json "church"): the west tower, the nave with its clerestory under a
+// low-pitched roof, lean-to aisles either side, the chancel and the south porch. `p` gives each part's cells (inclusive
+// x along the church to the east, z across it to the south) and its eaves and top in metres.
+export function churchBuilding(W, p) {
+  const { tower: T, nave: N, northAisle: NA, southAisle: SA, chancel: C, porch: PO } = p;
+  const L = layersFor, key = (x, z) => x + ',' + z;
+  const mid = (q) => Math.floor((q.z[0] + q.z[1]) / 2);
+  // roof layer of every cell, and the side its slope falls to (null: a flat tile)
+  const top = new Map(), fall = new Map();
+  // a low roof: a brick higher every stud in from the eaves on the sides `falls`, up to its top, then flat
+  const roof = (q, falls) => {
+    const eaves = L(q.eaves ?? q.top), t = Math.max(eaves + 1, L(q.top));
+    for (let z = q.z[0]; z <= q.z[1]; z++) for (let x = q.x[0]; x <= q.x[1]; x++) {
+      if (top.has(key(x, z))) continue;
+      const edge = { n: z - q.z[0], s: q.z[1] - z, w: x - q.x[0], e: q.x[1] - x };
+      const [side, d] = falls.length ? falls.map(f => [f, edge[f]]).sort((a, b) => a[1] - b[1])[0] : [null, Infinity];
+      top.set(key(x, z), Math.min(t - 1, eaves + d));
+      fall.set(key(x, z), d < t - eaves ? side : null);
+    }
+  };
+  // the tower first, so the parts against it stop at its wall
+  const TT = L(T.top);   // parapet on top of the last layer
+  for (let z = T.z[0]; z <= T.z[1]; z++) for (let x = T.x[0]; x <= T.x[1]; x++) top.set(key(x, z), TT - 2);
+  roof(N, ['n', 's']); roof(C, ['n', 's']);
+  // the aisles run beside the nave only
+  for (const A of [NA, SA]) roof({ ...A, x: [Math.max(A.x[0], N.x[0]), Math.min(A.x[1], N.x[1])] }, [A === NA ? 'n' : 's']);
+  if (p.boilerHouse) roof(p.boilerHouse, []);
+
+  // walls: a cell on the outside is wall from the ground to its roof; one inside stands up only where it is clear of a
+  // lower neighbour (the clerestory above the aisles, the nave's east gable above the chancel)
+  const N4 = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+  const slopes = new Map();
+  for (const [k, t] of top) {
+    const [x, z] = k.split(',').map(Number), inT = x >= T.x[0] && x <= T.x[1] && z >= T.z[0] && z <= T.z[1];
+    const ns = N4.map(([dx, dz]) => top.get(key(x + dx, z + dz)));
+    const y0 = ns.some(v => v === undefined) ? 0 : Math.min(...ns) + 1;
+    for (let y = y0; y < t; y++) W.set(x, y, z, inT && (y === 0 || y === 11 || y === 22) ? PAL.dbg : stone());
+    if (y0 > 0 || inT) W.set(x, 0, z, PAL.tan, F_TILE | F_NOCOLLIDE);
+    if (inT) {
+      // the tower's panelled parapet round a flat lead roof
+      if (ns.some(v => v === undefined || v < t)) { W.set(x, t, z, stone()); W.set(x, t + 1, z, PAL.lbg); } else W.set(x, t, z, PAL.dbg, F_TILE);
+      continue;
+    }
+    const f = fall.get(k);
+    if (!f) { W.set(x, t, z, PAL.dbg, F_TILE); continue; }
+    const sk = (f === 'n' || f === 's' ? 'x|' + z : 'z|' + x) + '|' + t + '|' + (f === 's' || f === 'e' ? 1 : -1);
+    if (!slopes.has(sk)) slopes.set(sk, []);
+    slopes.get(sk).push(f === 'n' || f === 's' ? x : z);
   }
-  // buttresses at corners
-  for (const [x, z] of [[tx0 - 1, tz0], [tx0, tz0 - 1], [tx0 + T, tz0], [tx0 + T - 1, tz0 - 1], [tx0 - 1, tz0 + T - 1], [tx0, tz0 + T], [tx0 + T, tz0 + T - 1], [tx0 + T - 1, tz0 + T]])
-    for (let y = 0; y < 18; y++) if (y < 18 - Math.abs((x + z) % 3)) W.set(x, y, z, stone());
-  // panelled parapet (solid, not battlemented)
-  for (let i = 0; i < T; i++) for (const [x, z] of [[tx0 + i, tz0], [tx0 + i, tz0 + T - 1], [tx0, tz0 + i], [tx0 + T - 1, tz0 + i]]) W.set(x, TH, z, PAL.lbg);
-  for (let z = tz0 + 1; z < tz0 + T - 1; z++) for (let x = tx0 + 1; x < tx0 + T - 1; x++) W.set(x, TH - 1, z, PAL.dbg, F_TILE);
-  // pinnacles
+  for (const [sk, ls] of slopes) {
+    const [axis, u, y, dir] = sk.split('|');
+    ls.sort((a, b) => a - b);
+    for (let i = 0, s0 = ls[0]; i < ls.length; i++) if (i === ls.length - 1 || ls[i + 1] !== ls[i] + 1) { W.slope(axis, +u, s0, ls[i], +y, +dir, PAL.dbg); s0 = ls[i + 1]; }
+  }
+
+  // tower: buttresses at the corners, west door and window, the clock (on the west face, Southwell & Nottingham Church
+  // History Project), belfry louvres on every face and a pinnacle on each corner
+  const tz = mid(T), tx = Math.floor((T.x[0] + T.x[1]) / 2);
+  for (const [x, z] of [[T.x[0] - 1, T.z[0]], [T.x[0], T.z[0] - 1], [T.x[1] + 1, T.z[0]], [T.x[1], T.z[0] - 1], [T.x[0] - 1, T.z[1]], [T.x[0], T.z[1] + 1], [T.x[1] + 1, T.z[1]], [T.x[1], T.z[1] + 1]])
+    if (!top.has(key(x, z))) for (let y = 0; y < 18 - Math.abs((x + z) % 3); y++) W.set(x, y, z, stone());
+  doorIn(W, 'z', T.x[0], tz - 1, 2, 6, { color: PAL.reddishBrown, frame: PAL.dbg, outward: -1 });
+  churchWindow(W, 'z', T.x[0], tz - 2, 4, 9, 5);
+  W.clocks = [{ x: T.x[0], y: 18.5 * BRICK, z: (T.z[0] + T.z[1] + 1) / 2, face: 'w' }];
+  for (const [axis, fixed, a0] of [['x', T.z[0], tx - 1], ['x', T.z[1], tx - 1], ['z', T.x[0], tz - 1], ['z', T.x[1], tz - 1]]) louvre(W, axis, fixed, a0, 3, TT - 9, 4);
   W.extras.push(({ at }) => {
-    for (const [x, z] of [[tx0, tz0], [tx0 + T - 1, tz0], [tx0, tz0 + T - 1], [tx0 + T - 1, tz0 + T - 1]]) {
-      const b = at(x, z);
-      b.geom(new THREE.CylinderGeometry(0.42, 0.42, 1.6, 12), new THREE.Matrix4().makeTranslation(x + 0.5, (TH + 1) * BRICK + 0.8, z + 0.5), col(PAL.lbg));
-      b.geom(new THREE.ConeGeometry(0.5, 2.6, 12), new THREE.Matrix4().makeTranslation(x + 0.5, (TH + 1) * BRICK + 2.9, z + 0.5), col(PAL.lbg));
+    for (const [x, z] of [[T.x[0], T.z[0]], [T.x[1], T.z[0]], [T.x[0], T.z[1]], [T.x[1], T.z[1]]]) {
+      const b = at(x, z), y = TT * BRICK;
+      b.geom(new THREE.CylinderGeometry(0.42, 0.42, 1.6, 12), new THREE.Matrix4().makeTranslation(x + 0.5, y + 0.8, z + 0.5), col(PAL.lbg));
+      b.geom(new THREE.ConeGeometry(0.5, 2.6, 12), new THREE.Matrix4().makeTranslation(x + 0.5, y + 2.9, z + 0.5), col(PAL.lbg));
     }
   });
-  // west door, west window, belfry openings, clock
-  doorIn(W, 'z', tx0, tz0 + 4, 2, 6, { color: PAL.reddishBrown, frame: PAL.dbg, outward: -1 });
-  churchWindow(W, 'z', tx0, tz0 + 3, 4, 9, 5);
-  for (const [axis, fixed] of [['x', tz0], ['x', tz0 + T - 1], ['z', tx0], ['z', tx0 + T - 1]]) {
-    const a0 = axis === 'x' ? tx0 + 3 : tz0 + 3;
-    louvre(W, axis, fixed, a0, 4, 22, 4);
-  }
-  // the dial is on the west face, above the west window (Southwell & Nottingham Church History Project)
-  W.clocks = [{ x: tx0, y: 16 * BRICK + 1.2, z: tz0 + 5, face: 'w' }];
 
-  // Nave with clerestory, x 4..29 z 22..29; aisles z 17..21 and z 30..34; chancel x 30..41
-  const nx0 = 4, nx1 = 29, nz0 = 21, nz1 = 30, NH = 16;
-  for (let y = 0; y < NH; y++) for (let x = nx0; x <= nx1; x++) { W.set(x, y, nz0, stone()); W.set(x, y, nz1, stone()); }
-  for (let y = 0; y < NH; y++) for (let z = nz0; z <= nz1; z++) W.set(nx1, y, z, stone());
-  // aisles: lower walls, lean-to roofs
-  const AH = 8;
-  for (const [az0, az1, out] of [[16, nz0 - 1, 16], [nz1 + 1, 35, 35]]) {
-    for (let y = 0; y < AH; y++) for (let x = nx0; x <= nx1; x++) W.set(x, y, out, stone());
-    for (let y = 0; y < AH; y++) for (let z = az0; z <= az1; z++) { W.set(nx0, y, z, stone()); W.set(nx1, y, z, stone()); }
-    // lean-to: slopes rising toward the nave
-    for (let k = 0; k < 4; k++) {
-      if (out === 16) W.slope('x', 15 + k, nx0 - 1, nx1 + 1, AH + k, -1, PAL.dbg);
-      else W.slope('x', 36 - k, nx0 - 1, nx1 + 1, AH + k, 1, PAL.dbg);
-    }
-    for (let k = 0; k < 4; k++) for (const x of [nx0, nx1]) for (let z = (out === 16 ? 16 + k : nz1 + 1); z <= (out === 16 ? nz0 - 1 : 35 - k); z++) W.set(x, AH + k, z, stone());
-    for (let x = nx0 + 2; x + 3 <= nx1 - 1; x += 6) churchWindow(W, 'x', out, x, 3, 2, 4);
-  }
-  // remove nave wall below aisle roof (arcade), keep piers
-  for (let x = nx0 + 1; x < nx1; x++) if ((x - nx0) % 5 !== 0) for (let y = 1; y < 7; y++) { W.del(x, y, nz0); W.del(x, y, nz1); }
-  // clerestory windows
-  for (let x = nx0 + 2; x + 2 <= nx1 - 1; x += 5) { windowIn(W, 'x', nz0, x, 2, 12, 3, { frame: PAL.lbg, glass: 0x8db3c7, sill: false }); windowIn(W, 'x', nz1, x, 2, 12, 3, { frame: PAL.lbg, glass: 0x8db3c7, sill: false }); }
-  // nave roof (low pitch in reality; LEGO 45° here), slate
-  gableRoof(W, nx0, nz0, nx1, nz1, NH, PAL.dbg, PAL.lbg, 'x');
-  // chancel
-  const cx0 = 30, cx1 = 41, cz0 = 22, cz1 = 29, CH = 11;
-  for (let y = 0; y < CH; y++) { for (let x = cx0; x <= cx1; x++) { W.set(x, y, cz0, stone()); W.set(x, y, cz1, stone()); } for (let z = cz0; z <= cz1; z++) W.set(cx1, y, z, stone()); }
-  gableRoof(W, cx0, cz0, cx1, cz1, CH, PAL.dbg, PAL.lbg, 'x');
-  churchWindow(W, 'z', cx1, cz0 + 2, 4, 2, 7);  // Perpendicular east window
-  // crocketed pinnacles on the corners of the east gable (listing)
+  // the doors and windows the listing (Historic England 1156936) describes, spread evenly along their walls
+  const spread = (a0, a1, n, w) => Array.from({ length: n }, (_, i) => Math.round(a0 + (i + 0.5) * (a1 - a0 + 1) / n - w / 2));
+  const ax1 = (A) => Math.min(A.x[1], N.x[1]), ax0 = (A) => Math.max(A.x[0], N.x[0]);
+  // nave: three double lancets in the clerestory on each side, above the aisle roofs
+  const clere = Math.max(top.get(key(N.x[0], NA.z[1])) ?? 0, top.get(key(N.x[0], SA.z[0])) ?? 0) + 1;
+  for (const x of spread(N.x[0], N.x[1], 3, 2)) for (const z of [N.z[0], N.z[1]]) windowIn(W, 'x', z, x, 2, clere, Math.min(3, L(N.eaves) - clere), { frame: PAL.lbg, glass: 0x8db3c7, sill: false });
+  // north aisle: a west doorway, two triple lancets to the east of it, and a smaller one in each end
+  doorIn(W, 'x', NA.z[0], ax0(NA) + 2, 2, 5, { color: PAL.reddishBrown, frame: PAL.dbg, outward: -1 });
+  for (const x of spread(ax0(NA) + 6, ax1(NA), 2, 3)) churchWindow(W, 'x', NA.z[0], x, 3, 2, 5);
+  for (const x of [ax0(NA), ax1(NA)]) churchWindow(W, 'z', x, mid(NA) - 1, 3, 3, 3);
+  // south aisle: a double lancet either side of the porch and one in each end
+  for (const [a0, a1] of [[ax0(SA), PO.x[0] - 2], [PO.x[1] + 2, ax1(SA)]]) if (a1 - a0 >= 4) churchWindow(W, 'x', SA.z[1], spread(a0, a1, 1, 3)[0], 3, 2, 5);
+  for (const x of [ax0(SA), ax1(SA)]) churchWindow(W, 'z', x, mid(SA) - 1, 3, 2, 5);
+  // chancel: the five-light east window; on the south a priest's door between two triple lancets, on the north two
+  // lancets at the west end; crocketed pinnacles on the corners of the east gable and one in the middle of the south eaves
+  churchWindow(W, 'z', C.x[1], mid(C) - 2, 5, 2, 7);
+  const cmid = Math.floor((C.x[0] + C.x[1]) / 2);
+  doorIn(W, 'x', C.z[1], cmid, 2, 5, { color: PAL.reddishBrown, frame: PAL.dbg, outward: 1 });
+  for (const x of [Math.round((C.x[0] + cmid) / 2) - 1, Math.round((cmid + C.x[1]) / 2)]) churchWindow(W, 'x', C.z[1], x, 3, 2, 5);
+  for (const x of [C.x[0] + 2, C.x[0] + 5]) windowIn(W, 'x', C.z[0], x, 1, 2, 5, { frame: PAL.lbg, glass: 0x6f8fa6, sill: false });
+  const CT = top.get(key(C.x[1], mid(C)));
   W.extras.push(({ at }) => {
-    // standing on the eaves corners of the gable, clear of the roof
-    for (const z of [cz0 - 0.5, cz1 + 1.5]) {
-      const b = at(cx1, Math.floor(z)), y0 = (CH + 1) * BRICK;
-      b.geom(new THREE.CylinderGeometry(0.32, 0.32, 1.4, 12), new THREE.Matrix4().makeTranslation(cx1 + 0.5, y0 + 0.7, z), col(PAL.lbg));
-      b.geom(new THREE.ConeGeometry(0.4, 2.2, 12), new THREE.Matrix4().makeTranslation(cx1 + 0.5, y0 + 2.5, z), col(PAL.lbg));
+    for (const [x, z] of [[C.x[1], C.z[0]], [C.x[1], C.z[1]], [cmid, C.z[1]]]) {
+      const b = at(x, z), y0 = (CT + 1) * BRICK;
+      b.geom(new THREE.CylinderGeometry(0.32, 0.32, 1.4, 12), new THREE.Matrix4().makeTranslation(x + 0.5, y0 + 0.7, z + 0.5), col(PAL.lbg));
+      b.geom(new THREE.ConeGeometry(0.4, 2.2, 12), new THREE.Matrix4().makeTranslation(x + 0.5, y0 + 2.5, z + 0.5), col(PAL.lbg));
     }
   });
-  churchWindow(W, 'x', cz0, cx0 + 3, 2, 2, 5); churchWindow(W, 'x', cz1, cx0 + 3, 2, 2, 5);
-  churchWindow(W, 'x', cz0, cx0 + 7, 2, 2, 5); churchWindow(W, 'x', cz1, cx0 + 7, 2, 2, 5);
-  // south porch
-  house(W, { x0: 12, z0: 36, w: 7, d: 6, floors: 1, wall: PAL.lbg, plinth: PAL.dbg, roof: PAL.dbg, front: 's', ridge: 'z', chimneys: 0, door: PAL.reddishBrown, frame: PAL.dbg, doorAt: 14 });
-  // interior floor of the church
-  for (let z = 17; z <= 34; z++) for (let x = nx0 + 1; x < nx1; x++) if (!W.has(x, 0, z)) W.set(x, 0, z, PAL.tan, F_TILE | F_NOCOLLIDE);
-
-  W.labels.push({ name: "St Bartholomew's Church", x: 17, z: 26, r: 22 });
+  // south porch: a little gabled stone porch with its ridge running out from the aisle
+  house(W, { x0: PO.x[0], z0: PO.z[0], w: PO.x[1] - PO.x[0] + 1, d: PO.z[1] - PO.z[0] + 1, floors: 1, wall: PAL.lbg, plinth: PAL.dbg, roof: PAL.dbg, front: 's', ridge: 'z', chimneys: 0, windows: false, door: PAL.reddishBrown, frame: PAL.dbg, doorAt: PO.x[0] + Math.floor((PO.x[1] - PO.x[0] - 1) / 2) });
 }
 
 // War memorial: Celtic cross on a plinth (1920)

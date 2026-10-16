@@ -15,7 +15,7 @@ python3 tools/serve.py        # then open http://localhost:8765
 | Building outlines | Ordnance Survey OpenMap – Local (`SK_Building`, `SK_ImportantBuilding`) | OGL v3 — contains OS data © Crown copyright and database right |
 | Terrain, building and roof shapes (stud by stud), trees, hedgerows | Environment Agency LIDAR Composite DTM, First Return and Last Return DSM, 1 m | OGL v3 — © Environment Agency |
 | Roof materials (slate, brown tile, pantile, sheeting, felt) | Environment Agency National LIDAR Programme intensity, 2022 | OGL v3 — © Environment Agency |
-| Old Hall, Old Hall Cottage, war memorial positions | Historic England listings (via Wikipedia) | — |
+| Old Hall, Old Hall Cottage, war memorial positions; the church's doors, windows and pinnacles | Historic England listings (via Wikipedia; the church's from the Southwell & Nottingham Church History Project) | — |
 | Building shapes as clean parts (every building) | Fitted to the LIDAR by `tools/fit_buildings.py` | as above |
 | Crop in each field | Rural Payments Agency Crop Map of England (CROME) 2024, majority per hedge-bounded field (`tools/crome.py`) | OGL v3 — © Rural Payments Agency copyright and/or database right 2024 |
 | Hand-surveyed buildings, walls, doors, windows, chimneys, labels (`data/survey.json`) | Measured from the LIDAR; observed in Street View and aerial photographs (Oct 2026) and recorded by hand | — |
@@ -59,6 +59,10 @@ storey, which side faces the road (and which other sides are `blank`), door and 
 from the road), windows per floor (a count spaced evenly, a list of fractions, or null where hidden), storeys, a label, a door `porch` canopy (`gable` or `lean`), small front `gablets` (fractions
 along the front), `garages` doors ([fraction, colour, 2 for a double]) and `solar` panels (`face`: compass direction of the roof slope, `span`: fractions along it). Each is matched to the building whose outline contains
 its `at` point, and every entry says where it was seen.
+
+`church` gives St Bartholomew's parts as the LIDAR measures them (tower, nave, aisles, chancel, porch and boiler
+house: their outlines, eaves and tops); its doors, windows and pinnacles are the ones the Historic England listing
+describes, spaced evenly along each wall.
 
 `walls` are garden and boundary walls (height, brick or stone, coping, piers). A wall along a road gives the road's
 OpenStreetMap way id (`osm`), the `side` of it and `from`/`to` points, and stands at the back of the modelled pavement;

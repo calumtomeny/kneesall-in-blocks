@@ -3,7 +3,6 @@
 // so walls stay straight even when the real building sits at an angle.
 import { World, PAL, F_TILE, F_NOCOLLIDE } from './bricks.js';
 import { house, windowIn, doorIn, garageDoorIn, chimney, sign } from './parts.js';
-import { churchBuilding } from './landmarks.js';
 import { polyCells, dominantAngle, centroid } from './geo.js';
 import { roofPlan } from './roofs.js';
 
@@ -104,18 +103,9 @@ export function buildingFromRect(cx, cz, w, d, front, o = {}) {
   return P;
 }
 
-// St Bartholomew's on its real footprint: tower to the west, chancel to the east
+// Without its survey (survey.json "church") St Bartholomew's is a plain stone building on its mapped outline
 export function churchFromPolygon(pts) {
-  const t = dominantAngle(pts);
-  let a = t, bc = -Infinity;
-  for (let k = 0; k < 4; k++) { const aa = t + k * Math.PI / 2; if (Math.cos(aa) > bc) { bc = Math.cos(aa); a = aa; } }
-  const W = new World();
-  churchBuilding(W);
-  const [cx, cz] = centroid(pts), c = Math.cos(a), s = Math.sin(a);
-  const lx = 17, lz = 28; // local centre of the church model
-  const P = new Placed(W, cx - (lx * c - lz * s), cz - (lx * s + lz * c), a);
-  P.poly = pts; P.roofCol = PAL.dbg; P.label = "St Bartholomew's Church";
-  return P;
+  return buildingFromPolygon(pts, [0, 1], { wall: PAL.lbg, roof: PAL.dbg, floors: 2, chimneys: 0, label: "St Bartholomew's Church" });
 }
 
 // Generic footprint (L-shapes etc.): brick walls on the outline, windows on straight runs, hipped roof.
