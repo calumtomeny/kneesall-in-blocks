@@ -499,6 +499,28 @@ export function buildKneesall(data) {
     kerb(c.arc, ROAD_TOP, col(c.col), c.fill[0]);
   }
   for (const r of roads) if (r.spec.dash) dashesY(roadB, r.pts, 4, 5, 0.22, terrainY, ROAD_TOP + 0.02, col(PAL.white));
+  // Give Way markings seen in Street View (survey.json "giveWays"): a double dashed line across the minor road `osm`
+  // at the edge of the road it joins (the junction nearest `at`), and the painted triangle where one was seen
+  const mark = (pts, c) => { const y = terrainY(pts[0][0], pts[0][1]) + ROAD_TOP + 0.03; roadB.poly(pts.map(([x, z]) => [x, y, z]), c, [pts[0][0], y - 1, pts[0][1]]); };
+  for (const g of data.survey?.giveWays ?? []) {
+    const r = roads.find(r => r.id === g.osm); if (!r) continue;
+    const [jx, jz] = project(g.at), first = Math.hypot(r.pts[0][0] - jx, r.pts[0][1] - jz) < Math.hypot(r.pts.at(-1)[0] - jx, r.pts.at(-1)[1] - jz);
+    const [e, n] = first ? [r.pts[0], r.pts[1]] : [r.pts.at(-1), r.pts.at(-2)];
+    const L = Math.hypot(n[0] - e[0], n[1] - e[1]) || 1, ux = (n[0] - e[0]) / L, uz = (n[1] - e[1]) / L, vx = -uz, vz = ux;
+    // the road joined: the widest other road passing the junction
+    const major = roads.filter(o => o !== r && distToPolyline(e[0], e[1], o.pts).d < 1).sort((a, b) => b.spec.hw - a.spec.hw)[0];
+    const s0 = (major?.spec.hw ?? 4) + 0.4, hw = r.spec.hw - 0.3, white = col(PAL.white);
+    const at = (s, t) => [e[0] + ux * s + vx * t, e[1] + uz * s + vz * t];
+    for (const s of [s0, s0 + 0.7]) for (let t = -hw; t < hw; t += 1.2) {
+      const t1 = Math.min(hw, t + 0.7);
+      mark([at(s, t), at(s, t1), at(s + 0.3, t1), at(s + 0.3, t)], white);
+    }
+    if (g.triangle) {
+      // long triangle in the approach lane (traffic keeps left), pointing at the line
+      const side = hw / 2, b = s0 + 6.5;
+      mark([at(b, side - 0.9), at(b, side + 0.9), at(s0 + 2.5, side)], white);
+    }
+  }
   // (unknown) pavement cells outside the village are verge again
   for (const r of roads) if (r.sides === null && r.spec.pave) lineCells(r.pts, r.spec.hw + PAVE, (x, z, d) => {
     if (d > r.spec.hw && Math.hypot(x, z + 40) >= VILLAGE_R + 40 && !G.has(x, z, 1)) { G.set(x, z, PAL.green, 0, 1); }

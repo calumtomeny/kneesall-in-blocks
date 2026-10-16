@@ -418,6 +418,15 @@
     {"osm": 317706873, "side": "left", "at": [53.1706, -0.94688], "face": 250, "style": "warning", "text": "school", "postH": 5.6, "notes": "Children going to or from school warning above a \"School\" plate, north verge of School Lane, for traffic from Newark Road", "source": "Street View on School Lane (imagery as served 2026-10-16); position from one panorama, approximate"},
     {"osm": 317706873, "side": "left", "at": [53.1706, -0.94688], "face": 250, "style": "plate", "text": "School", "notes": "The plate under the school warning", "source": "Street View on School Lane (imagery as served 2026-10-16); position from one panorama, approximate"}
   ],
+  "giveWays": [
+    {"osm": 132570252, "at": [53.170753, -0.950003], "triangle": true, "notes": "Eakring Road at Newark Road", "source": "Street View (imagery as served 2026-10-16)"},
+    {"osm": 145012289, "at": [53.169917, -0.947978], "notes": "School Lane at Newark Road", "source": "Street View (imagery as served 2026-10-16)"},
+    {"osm": 145012286, "at": [53.171276, -0.950603], "notes": "Sington Road at Newark Road", "source": "Street View (imagery as served 2026-10-16)"},
+    {"osm": 132570251, "at": [53.171761, -0.951185], "triangle": true, "notes": "The road to Ossington and Laxton at Newark Road", "source": "Street View (imagery as served 2026-10-16)"},
+    {"osm": 145012294, "at": [53.172315, -0.949305], "notes": "Elm Tree Rise at Ossington Road", "source": "Street View (imagery as served 2026-10-16)"},
+    {"osm": 145012287, "at": [53.172267, -0.949627], "notes": "Baulk Lane at Ossington Road", "source": "Street View (imagery as served 2026-10-16)"},
+    {"osm": 317706873, "at": [53.172382, -0.946107], "triangle": true, "notes": "School Lane at Ossington Road", "source": "Street View (imagery as served 2026-10-16)"}
+  ],
   "lamps": [
     {"osm": 145012288, "side": "left", "at": [53.172812, -0.948706], "style": "column", "notes": "Grey steel column with an outreach arm and flat lantern at the corner by the bungalows, Elm Tree Rise", "source": "Street View (imagery as served 2026-10-16); position from bearings in two or more panoramas"},
     {"osm": 145012288, "side": "right", "at": [53.173075, -0.94936], "style": "column", "notes": "Grey steel column on the verge in front of the semis, Elm Tree Rise", "source": "Street View (imagery as served 2026-10-16); position from bearings in two or more panoramas"},

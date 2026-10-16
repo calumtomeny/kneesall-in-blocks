@@ -68,7 +68,9 @@ plates and speed limits) and at junctions and bends (Give Way, direction flags, 
 warnings, bend chevrons, the Rajdhaani's roadside board), each placed by a road the same way (on the verge, `against` a wall at the back of the pavement, or
 `offset` metres from the centre line) and turned to face compass direction `face`. `lamps` are street lights
 located from Street View bearings (a grey `column` with an outreach arm, or a `swan`-neck), at the kerb edge of the
-pavement or on the verge (`back`: at the back of the pavement), the arm reaching over the road.
+pavement or on the verge (`back`: at the back of the pavement), the arm reaching over the road. `giveWays` are the
+junctions where Street View shows Give Way markings: a double dashed line across the minor road `osm` at the edge
+of the road it joins, and the painted `triangle` where there is one.
 
 ## Regenerating `data/`
 
