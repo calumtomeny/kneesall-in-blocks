@@ -264,7 +264,6 @@ export function buildKneesall(data, opts = {}) {
         if (seen.storeys) o.floors = seen.storeys;
         if (seen.porch) o.canopy = seen.porch;
         if (seen.gablets) o.gablets = seen.gablets;
-        if (seen.parts) o.partWalls = seen.parts.map(([la, lo, wall]) => [project([la, lo]), wall]);
       }
       // LIDAR: storeys from roof height, roof form from the surface model (h is 0 for buildings newer than the survey)
       if (b.h > 0 && !seen?.storeys && !o.label?.startsWith('Kneesall CofE')) {
