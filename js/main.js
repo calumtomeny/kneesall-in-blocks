@@ -9,6 +9,7 @@ import { buildKneesall, groundMeshes } from './osm.js';
 import { polyCells, centroid, pointAlong, polylineLength, distToPolyline, pointInPoly } from './geo.js';
 import { makeMinifig, animateMinifig, makeCar, makeMixer } from './actors.js';
 import { MONTHS } from './seasons.js';
+import { KWALL } from './roofs.js';
 
 const $ = (id) => document.getElementById(id);
 const status = (t) => { $('loading-text').textContent = t; };
@@ -97,6 +98,13 @@ function applyTime(quiet = false) {
   scene.environmentIntensity = 0.55;
   sun.color.set(t.sunCol); sun.intensity = t.sunI; hemi.intensity = t.hemiI;
   scene.fog.color.set(t.fog); renderer.toneMappingExposure = t.exp;
+  // cloud cover takes the sun's strength (and so the shadows) away and lets the sky light it instead; rain and fog
+  // close the view in
+  const thick = Math.max(0, weather.cover - 0.4) / 0.6, wet = weather.rain > 0.05;
+  sun.intensity *= 1 - 0.8 * thick - (wet ? 0.1 : 0); hemi.intensity *= 1 + 0.5 * thick;
+  scene.fog.color.lerp(new THREE.Color(0xaeb4ba), 0.6 * thick);
+  const haze = weather.fog ? 0.15 : wet ? 0.45 : 1 - 0.3 * thick;
+  scene.fog.near = 220 * haze; scene.fog.far = 1100 * haze;
   if (!quiet) showToast(t.name);
 }
 
@@ -499,10 +507,12 @@ function updateTraffic(dt, t) {
 }
 
 // ------------------------------------------------------------------ clouds
+const cloudMat = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.5, clearcoat: 0.2 });
 function addClouds() {
   const R = rng(7);
-  const mat = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.5, clearcoat: 0.2 });
-  for (let i = 0; i < 14; i++) {
+  const mat = cloudMat;
+  // enough for an overcast sky; the weather shows as many as its cloud cover needs
+  for (let i = 0; i < 44; i++) {
     const b = new Builder();
     const n = 6 + Math.floor(R() * 8);
     for (let j = 0; j < n; j++) {
@@ -515,6 +525,80 @@ function addClouds() {
     m.castShadow = true;
     scene.add(m); dynamic.clouds.push(m);
   }
+}
+
+// ------------------------------------------------------------------ weather
+// The weather over Kneesall now, from Open-Meteo (cloud cover, rain or snow, wind), fetched when the page opens and
+// every quarter of an hour: the clouds that show and how grey they are, how much the sun gets through, the haze, the
+// rain and the way the clouds drift. R steps through live, fair, overcast and rain; with no connection it is fair.
+const WEATHERS = [
+  { name: 'Live weather', live: true },
+  { name: 'Fair weather', cover: 0.3, rain: 0, snow: false, windFrom: 250, windSpeed: 4 },
+  { name: 'Overcast', cover: 0.95, rain: 0, snow: false, windFrom: 250, windSpeed: 5 },
+  { name: 'Rain', cover: 1, rain: 2.5, snow: false, windFrom: 230, windSpeed: 7 },
+];
+let weatherIdx = 0, live = null, liveAt = -Infinity;
+const weather = { ...WEATHERS[1] };
+window.__dbg.weather = weather;   // what is shown: cover 0..1, rain mm/h, snow, wind from (compass) at m/s
+// WMO weather codes Open-Meteo reports
+const WMO = { 0: 'clear', 1: 'mainly clear', 2: 'partly cloudy', 3: 'overcast', 45: 'fog', 48: 'fog', 51: 'light drizzle', 53: 'drizzle',
+  55: 'drizzle', 56: 'freezing drizzle', 57: 'freezing drizzle', 61: 'light rain', 63: 'rain', 65: 'heavy rain', 66: 'freezing rain',
+  67: 'freezing rain', 71: 'light snow', 73: 'snow', 75: 'heavy snow', 77: 'snow grains', 80: 'showers', 81: 'showers',
+  82: 'heavy showers', 85: 'snow showers', 86: 'snow showers', 95: 'thunderstorm', 96: 'thunderstorm', 99: 'thunderstorm' };
+async function fetchWeather() {
+  liveAt = performance.now();
+  try {
+    const u = `https://api.open-meteo.com/v1/forecast?latitude=${KNEESALL[0]}&longitude=${KNEESALL[1]}` +
+      '&current=cloud_cover,precipitation,weather_code,wind_speed_10m,wind_direction_10m&wind_speed_unit=ms';
+    const c = (await (await fetch(u)).json()).current, code = c.weather_code;
+    const wet = (code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95, snow = (code >= 71 && code <= 77) || code === 85 || code === 86;
+    live = { cover: c.cloud_cover / 100, rain: wet || snow ? Math.max(0.3, c.precipitation * 4) : 0, snow, fog: code === 45 || code === 48,
+      windFrom: c.wind_direction_10m, windSpeed: c.wind_speed_10m, what: WMO[code] ?? '' };
+    if (!$('osm').innerHTML.includes('Open-Meteo')) $('osm').innerHTML += ' · Weather <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0)';
+  } catch (e) { live = null; }
+  if (WEATHERS[weatherIdx].live) applyWeather(true);
+}
+function applyWeather(quiet = false) {
+  const w = WEATHERS[weatherIdx];
+  Object.assign(weather, { fog: false }, w.live ? live ?? WEATHERS[1] : w);
+  // clouds: a few on a clear day, the whole sky when it is overcast, greyer as it closes in and when it rains
+  const n = Math.round(3 + weather.cover * (dynamic.clouds.length - 3));
+  dynamic.clouds.forEach((c, i) => { c.visible = i < n; c.scale.set(1 + 1.6 * weather.cover, 1 + 0.5 * weather.cover, 1 + 1.6 * weather.cover); });
+  cloudMat.color.setScalar(1 - 0.5 * Math.max(0, weather.cover - 0.5) - (weather.rain > 0 ? 0.15 : 0));
+  // the sky itself hazes over
+  su.turbidity.value = 4 + 12 * weather.cover; su.rayleigh.value = 1.2 * (1 - 0.6 * weather.cover); su.mieCoefficient.value = 0.004 + 0.02 * weather.cover;
+  applyTime(true);
+  if (!quiet) showToast(w.live ? (live ? `Live weather: ${live.what}, ${Math.round(live.cover * 100)}% cloud` : 'Live weather unavailable: fair') : w.name);
+}
+
+// rain (or snow) falling in a box round the camera
+const VY_PER_M = KWALL * BRICK;   // world units up per metre (walls are stretched, so this is more than across)
+const DROPS = 5000, rainPos = new Float32Array(DROPS * 6), drops = new Float32Array(DROPS * 3);
+const rainGeo = new THREE.BufferGeometry(); rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
+const rainMat = new THREE.LineBasicMaterial({ color: 0xb8c4d0, transparent: true, opacity: 0.55 });
+const rainLines = new THREE.LineSegments(rainGeo, rainMat); rainLines.frustumCulled = false; rainLines.visible = false; scene.add(rainLines);
+for (let i = 0; i < DROPS; i++) drops.set([Math.random() * 120 - 60, Math.random() * 60, Math.random() * 120 - 60], i * 3);
+function updateRain(dt) {
+  const on = weather.rain > 0.05;
+  rainLines.visible = on;
+  if (!on) return;
+  const n = Math.min(DROPS, Math.round(DROPS * Math.min(1, 0.2 + weather.rain / 4)));
+  const snow = weather.snow, fall = (snow ? 1.2 : 9) * VY_PER_M, len = snow ? 0.15 : 1.4;
+  rainMat.color.set(snow ? 0xffffff : 0xb8c4d0); rainMat.opacity = snow ? 0.9 : 0.55;
+  const to = (weather.windFrom + 180) * Math.PI / 180, wx = Math.sin(to) * weather.windSpeed / 0.7 * 0.5, wz = -Math.cos(to) * weather.windSpeed / 0.7 * 0.5;
+  const cx = camera.position.x, cy = camera.position.y, cz = camera.position.z;
+  for (let i = 0; i < n; i++) {
+    let x = drops[i * 3], y = drops[i * 3 + 1] - fall * dt, z = drops[i * 3 + 2];
+    x += wx * dt; z += wz * dt;
+    if (y < -15) { y += 60; x = Math.random() * 120 - 60; z = Math.random() * 120 - 60; }
+    if (x > 60) x -= 120; else if (x < -60) x += 120;
+    if (z > 60) z -= 120; else if (z < -60) z += 120;
+    drops[i * 3] = x; drops[i * 3 + 1] = y; drops[i * 3 + 2] = z;
+    const sx = wx / fall * len, sz = wz / fall * len;
+    rainPos.set([cx + x, cy + y, cz + z, cx + x - sx, cy + y + len, cz + z - sz], i * 6);
+  }
+  rainGeo.setDrawRange(0, n * 2);
+  rainGeo.attributes.position.needsUpdate = true;
 }
 
 // ------------------------------------------------------------------ player + collision
@@ -616,6 +700,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyV') { player.third = !player.third; showToast(player.third ? 'Third person' : 'First person'); }
   if (e.code === 'KeyF') { player.fly = !player.fly; player.vy = 0; showToast(player.fly ? 'Fly mode (Space up, C down)' : 'Walking'); }
   if (e.code === 'KeyT') { timeIdx = (timeIdx + 1) % TIMES.length; applyTime(); }
+  if (e.code === 'KeyR') { weatherIdx = (weatherIdx + 1) % WEATHERS.length; applyWeather(); }
   if (e.code === 'KeyY') {
     // the next month: the village is rebuilt for it (a reload), and you come back where you were
     try { sessionStorage.setItem('kneesall-resume', JSON.stringify({ p: player.pos.toArray(), yaw: player.yaw, pitch: player.pitch, fly: player.fly, third: player.third, time: timeIdx })); } catch (e) { /* no storage */ }
@@ -722,7 +807,15 @@ function updateCamera(dt) {
 function updateWorld(dt, t) {
   // "Now" follows the real sun, moved on every five minutes
   if (TIMES[timeIdx].now && performance.now() - timeAt > 300000) applyTime(true);
-  for (const cl of dynamic.clouds) { cl.position.x += dt * 1.6; if (cl.position.x > 800) cl.position.x = -800; }
+  // clouds drift downwind, and the weather is looked up again every quarter of an hour
+  const to = (weather.windFrom + 180) * Math.PI / 180, v = 0.4 + weather.windSpeed * 0.4;
+  for (const cl of dynamic.clouds) {
+    cl.position.x += Math.sin(to) * v * dt; cl.position.z -= Math.cos(to) * v * dt;
+    if (cl.position.x > 800) cl.position.x -= 1600; else if (cl.position.x < -800) cl.position.x += 1600;
+    if (cl.position.z > 800) cl.position.z -= 1600; else if (cl.position.z < -800) cl.position.z += 1600;
+  }
+  updateRain(dt);
+  if (WEATHERS[weatherIdx].live && performance.now() - liveAt > 900000) fetchWeather();
   if (dynamic.clock) {
     const d = new Date(); const h = d.getHours() % 12 + d.getMinutes() / 60, m = d.getMinutes() + d.getSeconds() / 60;
     dynamic.clock.hr.rotation.z = -h / 12 * Math.PI * 2; dynamic.clock.mn.rotation.z = -m / 60 * Math.PI * 2;
@@ -915,6 +1008,7 @@ function loop(now) {
     avatar = makeMinifig({ torso: PAL.red, legs: PAL.darkBlue, print: 'shirt', hair: PAL.brown });
     scene.add(avatar);
     applyTime();
+    fetchWeather();
     setupPost();
     status('Ready: ' + MONTHS[MONTH - 1] + (MONTH === new Date().getMonth() + 1 ? ' (this month)' : ''));
     $('start').disabled = false; $('start').textContent = 'Enter Kneesall';

@@ -21,7 +21,7 @@
   #loading-text { font-size: 13px; opacity: 0.7; margin-left: 12px; }
   #place { position: fixed; top: 16px; left: 16px; background: var(--card); padding: 8px 14px; border-radius: 10px; font-weight: 700; box-shadow: 0 4px 18px rgba(0,0,0,0.2); }
   #minimap { position: fixed; right: 16px; top: 16px; width: 220px; height: 220px; border-radius: 50%; border: 4px solid #fff; box-shadow: 0 4px 18px rgba(0,0,0,0.3); }
-  #help { position: fixed; left: 16px; bottom: 16px; background: rgba(0,0,0,0.45); color: #fff; padding: 8px 12px; border-radius: 8px; font-size: 12px; line-height: 1.6; }
+  #help { position: fixed; left: 16px; bottom: 16px; max-width: calc(55vw - 32px); background: rgba(0,0,0,0.45); color: #fff; padding: 8px 12px; border-radius: 8px; font-size: 12px; line-height: 1.6; }
   #help kbd { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.3); color: #fff; }
   #osm { position: fixed; right: 16px; bottom: 28px; max-width: min(46vw, 520px); text-align: right; line-height: 1.35; font-size: 10px; color: rgba(255,255,255,0.85); text-shadow: 0 1px 2px rgba(0,0,0,0.6); }
   #osm a { color: inherit; }
@@ -52,6 +52,7 @@
       <span><kbd>F</kbd></span><span>Fly mode — <kbd>Space</kbd> up, <kbd>C</kbd> down</span>
       <span><kbd>T</kbd></span><span>Change time of day (or the sun where it is now)</span>
       <span><kbd>Y</kbd></span><span>Next month: crops, leaves and hedges through the year</span>
+      <span><kbd>R</kbd></span><span>Weather: live over Kneesall, fair, overcast or rain</span>
       <span><kbd>M</kbd> <kbd>O</kbd> <kbd>H</kbd></span><span>Map, ambient occlusion, help</span>
     </div>
     <button id="start" disabled>Loading…</button><span id="loading-text">Starting…</span>
@@ -59,7 +60,7 @@
 </div>
 <div id="place">Kneesall</div>
 <canvas id="minimap" width="220" height="220"></canvas>
-<div id="help"><kbd>WASD</kbd> walk · <kbd>Shift</kbd> run · <kbd>Space</kbd> jump · <kbd>V</kbd> view · <kbd>F</kbd> fly · <kbd>T</kbd> time · <kbd>Y</kbd> month · <kbd>M</kbd> map · <kbd>H</kbd> hide</div>
+<div id="help"><kbd>WASD</kbd> walk · <kbd>Shift</kbd> run · <kbd>Space</kbd> jump · <kbd>V</kbd> view · <kbd>F</kbd> fly · <kbd>T</kbd> time · <kbd>Y</kbd> month · <kbd>R</kbd> weather · <kbd>M</kbd> map · <kbd>H</kbd> hide</div>
 <div id="crosshair"></div>
 <div id="toast"></div>
 <div id="fps"></div>

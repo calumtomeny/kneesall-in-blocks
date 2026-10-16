@@ -17,6 +17,7 @@ python3 tools/serve.py        # then open http://localhost:8765
 | Roof materials (slate, brown tile, pantile, sheeting, felt) | Environment Agency National LIDAR Programme intensity, 2022 | OGL v3 — © Environment Agency |
 | Old Hall, Old Hall Cottage, war memorial positions; the church's doors, windows and pinnacles | Historic England listings (via Wikipedia; the church's from the Southwell & Nottingham Church History Project) | — |
 | Building shapes as clean parts (every building) | Fitted to the LIDAR by `tools/fit_buildings.py` | as above |
+| Weather now (cloud, rain, snow, wind) | Open-Meteo forecast API, fetched live | CC BY 4.0 — Weather data by Open-Meteo.com |
 | Crop in each field | Rural Payments Agency Crop Map of England (CROME) 2024, majority per hedge-bounded field (`tools/crome.py`) | OGL v3 — © Rural Payments Agency copyright and/or database right 2024 |
 | Hand-surveyed buildings, walls, doors, windows, chimneys, labels (`data/survey.json`) | Measured from the LIDAR; observed in Street View and aerial photographs (Oct 2026) and recorded by hand | — |
 
@@ -36,6 +37,15 @@ through the winter, ripe in July (barley first) and stubble after harvest; oilse
 spring beans, maize and beet on bare soil until they come up. These are typical East Midlands dates, not records of
 these fields. Deciduous trees are bare from December to March, fresh in April and turn in October and November;
 the evergreens (see `tools/tree_kinds.py`) stay as they are. `js/seasons.js` holds the calendars.
+
+### Weather
+
+The weather is Kneesall's own, now: the page asks [Open-Meteo](https://open-meteo.com/) (free, no key; it is sent only
+the village's coordinates) for the cloud cover, rain or snow and wind when it opens and every quarter of an hour.
+Cloud cover sets how many clouds there are, how big and grey, how much the sun (and so the shadows) gets through and
+how hazy the distance is; rain and snow fall round you and close the view in; the clouds drift with the wind.
+<kbd>R</kbd> steps through live, fair, overcast and rain. Without a connection it stays fair. Weather data by
+Open-Meteo.com, CC BY 4.0.
 
 ### Roof materials
 
