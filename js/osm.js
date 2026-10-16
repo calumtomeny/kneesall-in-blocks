@@ -618,6 +618,7 @@ export function buildKneesall(data) {
     giveway: { w: 2.4, h: 2.1, postH: 4.5 },
     warning: { w: 2.4, h: 2.1, postH: 5 },
     chevron: { w: 3.4, h: 1.1, postH: 2.6, twoPosts: true },
+    plate: { w: 1.9, h: 0.6, postH: 3.5 },
     advert: { w: 3, h: 2.2, postH: 3.6, twoPosts: true, post: PAL.reddishBrown },
     direction: { w: 5, h: 1.1, postH: 3.7, posts: [-2, 0, 2] },
   };

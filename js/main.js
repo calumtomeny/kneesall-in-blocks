@@ -240,6 +240,16 @@ function signCanvas(s) {
         x.beginPath(); x.moveTo(cx, y0 - t * 0.6); x.lineTo(cx + t * 0.6, y0 + t * 0.4); x.lineTo(cx + t * 0.6, y1); x.lineTo(cx - t * 0.6, y1); x.lineTo(cx - t * 0.6, y0 + t * 0.4); x.closePath(); x.fill();
         x.fillRect(cx - pxW * 0.17, pxH * 0.6, pxW * 0.34, t * 0.75);
       }
+      if (s.text === 'school') {
+        // two children, the older one leading
+        const kid = (cx, h) => {
+          const y1 = pxH * 0.84, y0 = y1 - h, r = h * 0.11;
+          x.beginPath(); x.arc(cx, y0 + r, r, 0, 7); x.fill();
+          x.fillRect(cx - h * 0.09, y0 + r * 2.1, h * 0.18, h * 0.42);
+          x.save(); x.translate(cx, y0 + h * 0.62); x.rotate(0.35); x.fillRect(-h * 0.05, 0, h * 0.1, h * 0.38); x.rotate(-0.7); x.fillRect(-h * 0.05, 0, h * 0.1, h * 0.38); x.restore();
+        };
+        kid(pxW * 0.44, pxH * 0.4); kid(pxW * 0.57, pxH * 0.31);
+      }
       x.restore();
       return { cv, shape: !board };
     }
@@ -291,8 +301,8 @@ function signCanvas(s) {
   }
   // the Rajdhaani's board is white with maroon lettering, the school's dark blue with white, Kneesall's
   // name plate on the A616 dark grey-blue with white (Street View)
-  const bg = { pub: '#ffffff', school: '#0a3463', bus: '#ffffff', place: '#3a4654' }[s.style] ?? '#fff';
-  const fg = { pub: '#7a1f2a', school: '#ffffff', place: '#ffffff' }[s.style] ?? '#111';
+  const bg = { pub: '#ffffff', school: '#0a3463', bus: '#ffffff', place: '#3a4654', plate: '#ffffff' }[s.style] ?? '#fff';
+  const fg = { pub: '#7a1f2a', school: '#ffffff', place: '#ffffff', plate: '#111111' }[s.style] ?? '#111';
   x.fillStyle = bg; x.fillRect(0, 0, pxW, pxH);
   x.strokeStyle = fg; x.lineWidth = 10; x.strokeRect(14, 14, pxW - 28, pxH - 28);
   x.fillStyle = fg;
