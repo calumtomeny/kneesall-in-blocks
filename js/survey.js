@@ -25,6 +25,7 @@ export function surveyedBuildings(survey, bng) {
       windows: s.windows, doorDir: SIDES[s.door] ?? SIDES.n, chimneys: s.chimneys ?? [], frontWindows: s.frontWindows, doorAt: s.doorAt,
       solar: s.solar, canopy: s.porch, frame: PAL[s.frame], door: PAL[s.doorColour],
       garages: s.garages?.map(([f, c, n]) => [f, MATERIALS[c] ?? PAL[c] ?? PAL.white, n]),
+      frontAt: s.frontAt,
       blank: s.blank?.map(v => { const f = (typeof v === 'number' ? v : { n: 0, e: 90, s: 180, w: 270 }[v]) * Math.PI / 180; return [Math.sin(f), -Math.cos(f)]; }),
     });
     if (P) P.survey = s.name;
@@ -175,7 +176,8 @@ function partsBuilding(at, parts0, o) {
   };
   const doorDir = opts.doorDir ?? (front ? toLocal(front) : undefined);
   const blankDirs = opts.blank?.map(toLocal);
-  lidarBuilding(W, { cells, top, roofCol, wallCol }, { ...opts, chimney: opts.chimney ?? opts.wall, doorDir, blankDirs, chimneyAt });
+  const frontAt = opts.frontAt && [opts.frontAt[0] * k - mx, -opts.frontAt[1] * k - mz];   // (u, w) -> local studs
+  lidarBuilding(W, { cells, top, roofCol, wallCol }, { ...opts, chimney: opts.chimney ?? opts.wall, doorDir, blankDirs, chimneyAt, frontAt });
   P.poly = outline(cells).map(([x, z]) => P.toWorld(x, z));
   // the commonest roof colour stands for the building on the map
   const tally = new Map(); for (const c of roofCol.values()) tally.set(c, (tally.get(c) ?? 0) + 1);

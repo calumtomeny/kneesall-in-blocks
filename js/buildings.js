@@ -247,6 +247,12 @@ export function lidarBuilding(W, { cells, top, roofCol, wallCol }, o = {}) {
   const tallAt = (r, a, y) => [a, a + 1].every(v => (r.dz ? T(v, r.fixed) : T(r.fixed, v)) > y);
   const [ddx, ddz] = o.doorDir ?? [0, -1];
   const frontRuns = runs.filter(r => r.dx === ddx && r.dz === ddz).sort((a, b) => (b.end - b.start) - (a.end - a.start));
+  // or the front run nearest a point on it (survey.json "frontAt"), where a lower range has the longer wall
+  if (o.frontAt) {
+    const [px, pz] = o.frontAt, clamp = (v, r) => Math.max(r.start, Math.min(r.end + 1, v));
+    const dist = (r) => (r.dz ? Math.hypot(clamp(px, r) - px, r.fixed + 0.5 - pz) : Math.hypot(r.fixed + 0.5 - px, clamp(pz, r) - pz));
+    frontRuns.sort((a, b) => dist(a) - dist(b));
+  }
   const doorRun = frontRuns[0] ?? [...runs].sort((a, b) => (b.end - b.start) - (a.end - a.start))[0];
   // a position along a run, as a fraction 0..1 from the left as seen from outside, to a 2-stud slot
   const slotAt = (r, f) => {
