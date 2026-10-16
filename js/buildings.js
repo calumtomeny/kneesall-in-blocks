@@ -284,13 +284,14 @@ export function lidarBuilding(W, { cells, top, roofCol, wallCol }, o = {}) {
     if (r === doorRun && o.frontWindows) {
       // a count spaces that many windows evenly; a list gives each one's place (fractions, left to right)
       const even = (n) => Array.isArray(n) ? n.map(f => slotAt(r, f)) : Array.from({ length: n }, (_, k) => slotAt(r, (k + 0.5) / n));
+      // null for a floor nobody could see (behind a hedge, say) keeps the plain spacing there
       const [g, u] = o.frontWindows;
-      slots = even(g).filter(a => doors.every(d => Math.abs(a - d) >= 3));
+      slots = (g == null ? slots : even(g)).filter(a => doors.every(d => Math.abs(a - d) >= 3));
       // upstairs windows share out the stretch of the front that has an upper storey (not a lower wing's)
       const tall = [];
       for (let a = r.start; a < r.end; a++) if (tallAt(r, a, 10)) tall.push(a);
-      upper = !Array.isArray(u) && tall.length && tall.length < r.end - r.start ? Array.from({ length: u }, (_, k) => tall[Math.floor((k + 0.5) / u * tall.length)]) : even(u);
-      if (garages.length && !Array.isArray(g)) {
+      if (u != null) upper = !Array.isArray(u) && tall.length && tall.length < r.end - r.start ? Array.from({ length: u }, (_, k) => tall[Math.floor((k + 0.5) / u * tall.length)]) : even(u);
+      if (garages.length && g != null && !Array.isArray(g)) {
         // the ground-floor windows share out what the garage doors leave of the front
         const free = [];
         for (let a = r.start; a < r.end; a++) if (!inGarage(a) && doors.every(d => Math.abs(a - d) >= 3)) free.push(a);

@@ -55,7 +55,7 @@ last-return heights (or `--layer intensity`) in a rotated grid to read the parts
 
 `details` record what was seen of a building without re-measuring it: wall and roof materials, a painted ground
 storey, which side faces the road, door and chimney positions as fractions along the front (left to right as seen
-from the road), windows per floor (a count spaced evenly, or a list of fractions), storeys, a label, a door `porch` canopy (`gable` or `lean`), small front `gablets` (fractions
+from the road), windows per floor (a count spaced evenly, a list of fractions, or null where hidden), storeys, a label, a door `porch` canopy (`gable` or `lean`), small front `gablets` (fractions
 along the front), `garages` doors ([fraction, colour, 2 for a double]) and `solar` panels (`face`: compass direction of the roof slope, `span`: fractions along it). Each is matched to the building whose outline contains
 its `at` point, and every entry says where it was seen.
 

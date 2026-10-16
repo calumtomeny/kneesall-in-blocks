@@ -261,7 +261,7 @@ export function buildKneesall(data) {
         if (seen.solar) o.solar = { face: deg(seen.solar.face), span: seen.solar.span };
         if (seen.doors) o.doorAt = seen.doors;
         // windows seen on the front make it a house, even in a farmyard (barns get no windows and a wide door)
-        if (seen.windows) { o.frontWindows = seen.windows; if (o.windows === false && seen.windows.some(n => (Array.isArray(n) ? n.length : n) > 0)) { delete o.windows; o.barn = false; } }
+        if (seen.windows) { o.frontWindows = seen.windows; if (o.windows === false && seen.windows.some(n => n == null || (Array.isArray(n) ? n.length : n) > 0)) { delete o.windows; o.barn = false; } }
         if (seen.chimneys) o.chimneyAlong = seen.chimneys;
         if (seen.storeys) o.floors = seen.storeys;
         if (seen.porch) o.canopy = seen.porch;
