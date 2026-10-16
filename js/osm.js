@@ -201,7 +201,7 @@ export function buildKneesall(data) {
     if (type === 'school' || /school/i.test(name) || inArea('school', cx, cz)) return { wall: MATERIALS.redBrick, roof: PAL.dbg, floors: 1, door: PAL.darkGreen, frame: PAL.darkGreen, label: 'Kneesall CofE Primary Academy', chimneys: 0 };
     // the old Angel Inn, now the Rajdhaani restaurant: red brick over a white-painted ground floor (Street View)
     if (inArea('pub', cx, cz) && ar > 120) return { wall: MATERIALS.redBrick, groundWall: PAL.white, plinth: PAL.black, roof: PAL.dbg, floors: 2, door: PAL.white, porch: true, label: 'Rajdhaani', chimney: MATERIALS.redBrick };
-    if (cafe && pointInPoly(cafe.x, cafe.z, pts)) return { wall: PAL.darkRed, roof: PAL.red, floors: 1, frame: PAL.reddishBrown, door: PAL.reddishBrown, label: 'Hay Barn Café', chimneys: 0 };
+    if (cafe && pointInPoly(cafe.x, cafe.z, pts)) return { wall: MATERIALS.redBrick, roof: MATERIALS.pantile, floors: 1, label: 'Hay Barn Café', chimneys: 0 };
     if (inArea('farmyard', cx, cz) || ar > 420) {
       // modern sheds (low-pitched sheeting) are clad; traditional pitched farm ranges are brick
       const shed = /^sheet/.test(roofMaterial(b) ?? 'sheet');
@@ -211,7 +211,8 @@ export function buildKneesall(data) {
     return ar < 45 ? { ...o, floors: 1, chimneys: 0, porch: false } : o;
   };
   const listedAt = { oldHall: project(LISTED.oldHall), oldHallCottage: project(LISTED.oldHallCottage) };
-  const OLD_HALL = { wall: PAL.darkRed, plinth: PAL.dbg, roof: PAL.dbg, frame: PAL.tan, lintel: PAL.nougat, quoins: PAL.nougat, door: PAL.reddishBrown, chimneys: 2, chimney: PAL.darkRed, floors: 2, label: 'Old Hall (c.1525)' };
+  // early brick with moulded terracotta window heads, white casements, slate roof (listing; Street View)
+  const OLD_HALL = { wall: MATERIALS.redBrick, roof: MATERIALS.slate, frame: PAL.white, lintel: MATERIALS.pantile, door: PAL.reddishBrown, chimneys: 2, floors: 2, label: 'Old Hall (c.1525)' };
   const OLD_HALL_COTTAGE = { wall: MATERIALS.redBrick, roof: MATERIALS.pantile, lintel: PAL.lbg, chimneys: 2, floors: 2, label: 'Old Hall Cottage' };
 
   if (data.osBuildings) {
@@ -612,12 +613,17 @@ export function buildKneesall(data) {
     village: { w: 3, h: 3.2, postH: 5.5, twoPosts: true, post: PAL.black },
     place: { w: 4.5, h: 1.3, postH: 3, twoPosts: true },
     speed: { w: 2.2, h: 2.2, postH: 5 },
+    lorryEnd: { w: 2.2, h: 2.2, postH: 5 },
+    giveway: { w: 2.4, h: 2.1, postH: 4.5 },
+    direction: { w: 5, h: 1.1, postH: 3.7, posts: [-2, 0, 2] },
   };
   for (const sg of data.survey?.signs ?? []) {
     const r = roads.find(r => r.id === sg.osm); if (!r) continue;
     const n = distToPolyline(...project(sg.at), r.pts), a = r.pts[n.seg], b = r.pts[n.seg + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
     const ux = (b[0] - a[0]) / L, uz = (b[1] - a[1]) / L, s = sg.side === 'left' ? -1 : 1;
-    const off = r.spec.hw + ((r.sides === null ? !!r.spec.pave : r.sides.includes(sg.side)) ? PAVE : 0) + 1;
+    // `against: "wall"`: on the back edge of the pavement, in front of a wall; `offset`: metres from the centre line
+    const off = sg.offset !== undefined ? sg.offset / mps
+      : r.spec.hw + ((r.sides === null ? !!r.spec.pave : r.sides.includes(sg.side)) ? PAVE : 0) + (sg.against === 'wall' ? -0.5 : 1);
     const F = sg.face * Math.PI / 180;
     sign(W, Math.floor(n.qx - uz * s * off), Math.floor(n.qz + ux * s * off), sg.text,
       { ...SIGNS[sg.style], ...(sg.postH ? { postH: sg.postH } : {}), style: sg.style, face: Math.PI - F, oneSided: true });

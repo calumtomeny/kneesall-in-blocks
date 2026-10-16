@@ -63,7 +63,9 @@ its `at` point, and every entry says where it was seen.
 OpenStreetMap way id (`osm`), the `side` of it and `from`/`to` points, and stands at the back of the modelled pavement;
 any other wall is a list of points. The 1 m LIDAR does not show walls this low, so they come from Street View.
 `signs` are the road signs seen in Street View where roads enter the village (the pictorial village sign, name
-plates and speed limits), each placed by a road the same way and turned to face compass direction `face`.
+plates and speed limits) and at the Eakring Road junction (Give Way, direction flags, the end of a goods-vehicle
+restriction), each placed by a road the same way (on the verge, `against` a wall at the back of the pavement, or
+`offset` metres from the centre line) and turned to face compass direction `face`.
 
 ## Regenerating `data/`
 

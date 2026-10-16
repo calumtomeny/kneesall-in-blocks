@@ -273,10 +273,10 @@ export function sign(W, x, z, text, o = {}) {
   W.signs = W.signs || [];
   const face = o.face ?? (o.rot ? Math.PI / 2 : 0);
   W.signs.push({ x, z, text, ...o, face });
-  W.set(x, 0, z, PAL.lbg, F_HIDDEN);
+  if (!W.has(x, 0, z)) W.set(x, 0, z, PAL.lbg, F_HIDDEN);
   W.extras.push(({ at }) => {
     const b = at(x, z), h = o.postH ?? 4.5, ux = Math.cos(face), uz = -Math.sin(face);
-    for (const dx of o.twoPosts ? [-((o.w ?? 4) / 2) + 0.3, (o.w ?? 4) / 2 - 0.3] : [0]) {
+    for (const dx of o.posts ?? (o.twoPosts ? [-((o.w ?? 4) / 2) + 0.3, (o.w ?? 4) / 2 - 0.3] : [0])) {
       b.geom(new THREE.CylinderGeometry(0.15, 0.15, h, 8), new THREE.Matrix4().makeTranslation(x + 0.5 + ux * dx, h / 2, z + 0.5 + uz * dx), col(o.post ?? PAL.lbg));
     }
   });

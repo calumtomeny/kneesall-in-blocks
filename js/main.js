@@ -177,7 +177,7 @@ async function build() {
     for (const off of [-0.8, 0.8]) { const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map(p => p.clone().add(new THREE.Vector3(off, 0, 0)))), wireMat); scene.add(l); }
   }
 
-  status('Hiring villagers…'); await nextFrame();
+  status('Adding clouds…'); await nextFrame();
   addClouds();
   buildMinimap();
   placePlayerAtStart();
@@ -195,6 +195,43 @@ function signCanvas(s) {
     x.strokeStyle = '#c91a09'; x.lineWidth = pxW * 0.1; x.beginPath(); x.arc(pxW / 2, pxH / 2, pxW / 2 - pxW * 0.07, 0, 7); x.stroke();
     x.fillStyle = '#111'; x.font = font(pxW * 0.42); x.fillText(s.text, pxW / 2, pxH / 2 + 8);
     return { cv, round: true };
+  }
+  if (s.style === 'lorryEnd') {
+    // end of the goods-vehicle restriction: white disc, black lorry, crossed out by black diagonal bands
+    x.fillStyle = '#fff'; x.beginPath(); x.arc(pxW / 2, pxH / 2, pxW / 2 - 4, 0, 7); x.fill();
+    x.strokeStyle = '#222'; x.lineWidth = 8; x.beginPath(); x.arc(pxW / 2, pxH / 2, pxW / 2 - 10, 0, 7); x.stroke();
+    x.fillStyle = '#111';
+    x.fillRect(pxW * 0.42, pxH * 0.36, pxW * 0.38, pxH * 0.24); x.fillRect(pxW * 0.22, pxH * 0.44, pxW * 0.18, pxH * 0.16);
+    for (const cx of [0.3, 0.7]) { x.beginPath(); x.arc(pxW * cx, pxH * 0.63, pxW * 0.05, 0, 7); x.fill(); }
+    x.save(); x.beginPath(); x.arc(pxW / 2, pxH / 2, pxW / 2 - 14, 0, 7); x.clip();
+    x.translate(pxW / 2, pxH / 2); x.rotate(-Math.PI / 4); x.fillStyle = '#fff';
+    for (let i = -2; i <= 1; i++) x.fillRect(-pxW, i * pxW * 0.07 + pxW * 0.01, pxW * 2, pxW * 0.025);
+    x.fillStyle = '#111'; for (let i = -2; i <= 1; i++) x.fillRect(-pxW, i * pxW * 0.07 + pxW * 0.035, pxW * 2, pxW * 0.03);
+    x.restore();
+    return { cv, round: true };
+  }
+  if (s.style === 'giveway' || s.style === 'direction') {
+    // shaped plates: draw each outline (sign units, y up) onto the canvas, red-bordered triangle or black-bordered flags
+    const P = (px, py) => [(px / s.w + 0.5) * pxW, (0.5 - py / s.h) * pxH];
+    const path = (poly) => { x.beginPath(); poly.forEach(([a, b], i) => x[i ? 'lineTo' : 'moveTo'](...P(a, b))); x.closePath(); };
+    x.lineJoin = 'round';
+    if (s.style === 'giveway') {
+      const poly = signShape(s)[0];
+      path(poly); x.fillStyle = '#c91a09'; x.fill();
+      x.save(); x.translate(pxW / 2, pxH * 0.42); x.scale(0.62, 0.62); x.translate(-pxW / 2, -pxH * 0.42); path(poly); x.restore();
+      x.fillStyle = '#fff'; x.fill();
+      x.fillStyle = '#111'; x.font = font(pxH * 0.1); x.fillText('GIVE', pxW / 2, pxH * 0.3); x.fillText('WAY', pxW / 2, pxH * 0.42);
+      return { cv, shape: true };
+    }
+    const names = s.text.split('|');
+    signShape(s).forEach((poly, i) => {
+      path(poly); x.fillStyle = '#fff'; x.fill(); x.strokeStyle = '#111'; x.lineWidth = pxH * 0.07; x.stroke();
+      // place name above the route number, centred on the square end of the flag
+      const words = names[i].split(' '), route = words.pop(), mid = (poly[0][0] + poly[1][0]) / 2;
+      x.fillStyle = '#111'; x.font = font(pxH * 0.3);
+      x.fillText(words.join(' '), P(mid, 0)[0], pxH * 0.31); x.fillText(route, P(mid, 0)[0], pxH * 0.69);
+    });
+    return { cv, shape: true };
   }
   if (s.style === 'village') {
     // Kneesall's pictorial village sign: a painted oval (fields, sky and the church tower) over the name
@@ -228,16 +265,34 @@ function signCanvas(s) {
   return { cv };
 }
 
+// outlines of shaped plates in sign units (centred, y up): a give-way triangle, or a pair of direction flags
+// pointing away from each other
+function signShape(s) {
+  const w = s.w, h = s.h;
+  if (s.style === 'giveway') return [[[-w / 2, h / 2], [w / 2, h / 2], [0, -h / 2]]];
+  const g = w * 0.02, p = h * 0.45;
+  return [[[-g, h / 2], [-w / 2 + p, h / 2], [-w / 2, 0], [-w / 2 + p, -h / 2], [-g, -h / 2]],
+    [[g, h / 2], [w / 2 - p, h / 2], [w / 2, 0], [w / 2 - p, -h / 2], [g, -h / 2]]];
+}
+
 function addSigns(world, parent) {
   for (const s of world.signs || []) {
-    const { cv, round } = signCanvas(s);
+    const { cv, round, shape } = signCanvas(s);
     const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
     if (round) { tex.center.set(0.5, 0.5); tex.rotation = Math.PI / 2; }   // a disc's cap is mapped a quarter turn round
     const face = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.4, transparent: !!round, alphaTest: round ? 0.5 : 0 });
     const edge = new THREE.MeshStandardMaterial({ color: 0xa0a5a9, roughness: 0.4 });
     const geo = round ? new THREE.CylinderGeometry(s.w / 2, s.w / 2, 0.2, 32) : new THREE.BoxGeometry(s.w, s.h, 0.2);
     let m;
-    if (round) {
+    if (shape) {
+      // a plain grey plate cut to shape, the printed face just in front of it
+      const shapes = signShape(s).map(poly => new THREE.Shape(poly.map(([a, b]) => new THREE.Vector2(a, b))));
+      const body = new THREE.ExtrudeGeometry(shapes, { depth: 0.2, bevelEnabled: false }); body.translate(0, 0, -0.1);
+      tex.repeat.set(1 / s.w, 1 / s.h); tex.offset.set(0.5, 0.5);
+      const front = new THREE.Mesh(new THREE.ShapeGeometry(shapes), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.4 }));
+      front.position.z = 0.105;
+      m = new THREE.Group(); m.add(new THREE.Mesh(body, edge), front);
+    } else if (round) {
       const fm = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.4 });
       m = new THREE.Mesh(geo, [edge, fm, s.oneSided ? edge : fm]); m.rotation.x = Math.PI / 2;
       const g = new THREE.Group(); g.add(m); m = g;
