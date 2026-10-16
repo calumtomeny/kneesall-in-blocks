@@ -6,7 +6,7 @@ import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { buildWorld, studGeometry, studTexture, Builder, World, BRICK, PLATE, PAL, col, rng, F_NOCOLLIDE } from './bricks.js';
 import { buildKneesall, groundMeshes } from './osm.js';
-import { polyCells, centroid, pointAlong, distToPolyline } from './geo.js';
+import { polyCells, centroid, pointAlong, distToPolyline, pointInPoly } from './geo.js';
 import { makeMinifig, animateMinifig } from './actors.js';
 
 const $ = (id) => document.getElementById(id);
@@ -57,8 +57,9 @@ let timeIdx = 2;
 const sunDir = new THREE.Vector3();
 function applyTime() {
   const t = TIMES[timeIdx];
-  sunDir.setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - t.elev), THREE.MathUtils.degToRad(t.az));
-  // azimuth: 180 = due south (+z)
+  // compass azimuth (0 north, 90 east, 180 south) with x east and z south
+  const el = THREE.MathUtils.degToRad(t.elev), az = THREE.MathUtils.degToRad(t.az);
+  sunDir.set(Math.cos(el) * Math.sin(az), Math.sin(el), -Math.cos(el) * Math.cos(az));
   su.sunPosition.value.copy(sunDir);
   const eu = envSky.material.uniforms;
   for (const k of ['turbidity', 'rayleigh', 'mieCoefficient', 'mieDirectionalG']) eu[k].value = su[k].value;
@@ -419,19 +420,33 @@ function placePlayerAtStart() {
   let s0 = 0; for (let i = 0; i < n.seg; i++) s0 += Math.hypot(K.newark[i + 1][0] - K.newark[i][0], K.newark[i + 1][1] - K.newark[i][1]);
   s0 += n.t * Math.hypot(K.newark[n.seg + 1][0] - K.newark[n.seg][0], K.newark[n.seg + 1][1] - K.newark[n.seg][1]);
   let best = null;
+  // on a pavement stud (not the carriageway or a building) with room to stand
   const clear = (x, z) => {
-    for (let dz = -3; dz <= 3; dz++) for (let dx = -3; dx <= 3; dx++) for (let y = 0; y < 8; y++) if (W.has(Math.floor(x) + dx, y, Math.floor(z) + dz)) return false;
-    return G.has(Math.floor(x), Math.floor(z), 2) && !blocked(x, z, groundH(x, z));
+    const cx = Math.floor(x), cz = Math.floor(z);
+    return G.has(cx, cz, 2) && !G.has(cx, cz, 1 | 64) && !blocked(x, z, groundH(x, z));
   };
-  for (const ds of [-30, 30, -50, 50, -70, 70, -90, 90]) {
-    const q = pointAlong(K.newark, s0 + ds);
-    for (const side of [1, -1]) {
-      const x = q.x - q.dz * side * 6.6, z = q.z + q.dx * side * 6.6;
-      if (!clear(x, z)) continue;
-      const d = Math.hypot(x - ch.cx, z - ch.cz);
-      if (!best || d < best.d) best = { x, z, d };
+  // how much of the way towards the church is open at eye height (hedges, walls, trees and other buildings block it)
+  const view = (x, z) => {
+    const L = Math.hypot(ch.cx - x, ch.cz - z), ux = (ch.cx - x) / L, uz = (ch.cz - z) / L;
+    let open = 0, n = 0;
+    for (let t = 2; t < L; t += 1) {
+      const px = Math.floor(x + ux * t), pz = Math.floor(z + uz * t);
+      if (pointInPoly(px + 0.5, pz + 0.5, ch.poly)) break;   // reached the church
+      n++; if (![2, 3, 4].some(y => W.has(px, y, pz)) && !(G.has(px, pz, 1))) open++; else break;
     }
-    if (best) break;
+    return n ? open / Math.max(n, 20) : 0;
+  };
+  for (let k = 0; k < 60; k++) {
+    const ds = (30 + 2 * (k >> 1)) * (k & 1 ? 1 : -1);
+    const q = pointAlong(K.newark, s0 + ds);
+    for (const side of [1, -1]) for (const off of [6.3, 5.9, 6.7, 7.1]) {
+      const x = q.x - q.dz * side * off, z = q.z + q.dx * side * off;
+      if (!clear(x, z)) continue;
+      const v = view(x, z);
+      if (!best || v > best.v) best = { x, z, v };
+      break;
+    }
+    if (best && best.v >= 1) break;
   }
   if (!best) best = { x: n.qx, z: n.qz };
   player.pos.set(best.x, 0, best.z);
