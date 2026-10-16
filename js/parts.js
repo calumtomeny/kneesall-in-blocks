@@ -269,6 +269,33 @@ export function bench(W, x, z, axis = 'x') {
 }
 
 // Sign with canvas text (separate textured mesh, collected in W.signs)
+// A street light seen in Street View: a grey steel column with a short outreach arm and a flat lantern ('column'),
+// or a swan-neck bracket with a hanging lantern ('swan'); `arm` [dx, dz] points over the road
+export function streetLight(W, x, z, arm, style = 'column') {
+  if (!W.has(x, 0, z)) W.set(x, 0, z, PAL.lbg, F_HIDDEN);
+  W.extras.push(({ at, glass }) => {
+    const b = at(x, z), c = col(PAL.lbg), cx = x + 0.5, cz = z + 0.5, [ax, az] = arm;
+    const H = style === 'swan' ? 13 : 15, turn = Math.atan2(-az, ax);
+    // a box lying along the arm, `d0`..`d1` studs out from the column
+    const along = (d0, d1, y, h, w, colour) => b.geom(new THREE.BoxGeometry(d1 - d0, h, w),
+      new THREE.Matrix4().makeRotationY(turn).setPosition(cx + ax * (d0 + d1) / 2, y, cz + az * (d0 + d1) / 2), colour);
+    b.geom(new THREE.CylinderGeometry(0.12, 0.18, H, 10), new THREE.Matrix4().makeTranslation(cx, H / 2, cz), c);
+    if (style === 'swan') {
+      // the neck curves up and over, then the lantern hangs at its end
+      b.geom(new THREE.TorusGeometry(0.8, 0.09, 6, 12, Math.PI), new THREE.Matrix4().makeRotationY(turn).setPosition(cx + ax * 0.8, H, cz + az * 0.8), c);
+      along(1.6, 2.4, H, 0.16, 0.16, c);
+      b.geom(new THREE.CylinderGeometry(0.15, 0.35, 0.5, 8), new THREE.Matrix4().makeTranslation(cx + ax * 2.3, H - 0.3, cz + az * 2.3), c);
+      const lx = cx + ax * 2.3, lz = cz + az * 2.3;
+      glass.box(lx - 0.24, H - 1.25, lz - 0.24, lx + 0.24, H - 0.55, lz + 0.24, col(0xfff1b0), { chamfer: 0.04, gap: 0 });
+    } else {
+      along(0, 1.2, H - 0.1, 0.14, 0.14, c);
+      along(1.0, 2.1, H, 0.2, 0.45, c);
+      const lx = cx + ax * 1.55, lz = cz + az * 1.55;
+      glass.box(lx - 0.18, H - 0.16, lz - 0.18, lx + 0.18, H - 0.1, lz + 0.18, col(0xfff1b0), { chamfer: 0.01, gap: 0 });
+    }
+  });
+}
+
 export function sign(W, x, z, text, o = {}) {
   W.signs = W.signs || [];
   const face = o.face ?? (o.rot ? Math.PI / 2 : 0);

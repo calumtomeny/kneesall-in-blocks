@@ -10,7 +10,7 @@
 // Plain defaults where nothing is known: red brick walls, white front doors, regularly spaced windows.
 import * as THREE from 'three';
 import { World, Builder, PAL, BRICK, PLATE, F_TILE, F_HIDDEN, F_NOCOLLIDE, F_PLAIN, col, rng } from './bricks.js';
-import { R, pick, tree, hedge, postBox, bench, sign } from './parts.js';
+import { R, pick, tree, hedge, postBox, bench, sign, streetLight } from './parts.js';
 import { warMemorial, headstone } from './landmarks.js';
 import { buildingFromPolygon, buildingFromRect, churchFromPolygon, houseStyle, STYLES, MATERIALS, roofMaterial } from './buildings.js';
 import { surveyedBuildings, surveyGrounds, surveyRoads, fittedBuilding } from './survey.js';
@@ -628,6 +628,17 @@ export function buildKneesall(data) {
     const F = sg.face * Math.PI / 180;
     sign(W, Math.floor(n.qx - uz * s * off), Math.floor(n.qz + ux * s * off), sg.text,
       { ...SIGNS[sg.style], ...(sg.postH ? { postH: sg.postH } : {}), style: sg.style, face: Math.PI - F, oneSided: true });
+  }
+
+  // street lights seen in Street View (survey.json "lamps"): by a mapped road like the signs, at the kerb edge of the
+  // pavement or on the verge (`back`: at the back of the pavement), the arm reaching out over the road
+  for (const l of data.survey?.lamps ?? []) {
+    const r = roads.find(r => r.id === l.osm); if (!r) continue;
+    const n = distToPolyline(...project(l.at), r.pts), a = r.pts[n.seg], b = r.pts[n.seg + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+    const ux = (b[0] - a[0]) / L, uz = (b[1] - a[1]) / L, s = l.side === 'left' ? -1 : 1;
+    const pave = r.sides === null ? !!r.spec.pave : r.sides.includes(l.side);
+    const off = r.spec.hw + (pave ? (l.back ? PAVE - 0.5 : 0.6) : 1);
+    streetLight(W, Math.floor(n.qx - uz * s * off), Math.floor(n.qz + ux * s * off), [uz * s, -ux * s], l.style);
   }
 
   // named farmyards (OpenStreetMap)

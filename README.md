@@ -23,7 +23,8 @@ python3 tools/serve.py        # then open http://localhost:8765
 Nothing is made up. Where no data says what something looks like, it gets a plain default: red brick walls and
 white front doors on houses nobody has looked at, and regularly spaced windows on walls not seen from a road. The
 churchyard's headstones are laid out in rows, as the real ones aren't mapped. Things that exist but whose
-positions aren't known are left out: street lamps, most road signs, and the cars, people and animals.
+positions aren't known are left out: most street lamps and road signs (only those located in Street View are
+drawn), and the cars, people and animals.
 
 ### Roof materials
 
@@ -65,7 +66,9 @@ any other wall is a list of points. The 1 m LIDAR does not show walls this low, 
 `signs` are the road signs seen in Street View where roads enter the village (the pictorial village sign, name
 plates and speed limits) and at the Eakring Road junction (Give Way, direction flags, the end of a goods-vehicle
 restriction), each placed by a road the same way (on the verge, `against` a wall at the back of the pavement, or
-`offset` metres from the centre line) and turned to face compass direction `face`.
+`offset` metres from the centre line) and turned to face compass direction `face`. `lamps` are street lights
+located from Street View bearings (a grey `column` with an outreach arm, or a `swan`-neck), at the kerb edge of the
+pavement or on the verge (`back`: at the back of the pavement), the arm reaching over the road.
 
 ## Regenerating `data/`
 
