@@ -52,7 +52,12 @@ middle of the range, so those roofs were checked against aerial photographs and 
 OS OpenMap Local outlines are generalised: some miss whole wings or sit a metre or
 two off. Each surveyed building is a set of rectangles in British National Grid metres (in a local grid rotated to
 the building), each with eaves and ridge heights and a gable, lean-to or hipped roof, plus wall and roof
-materials, chimney positions and the side the door faces. The file can also mark yards (`grounds`) and resurface
+materials, chimney positions and the side the door faces (and, where seen, door and window positions along it, a
+porch, `garages` doors and `blank` sides, as in `details` below). Houses built after the LIDAR survey, such as
+those in Fortune Close, are measured from aerial photographs instead: the satellite image leans tall things about
+0.4 m north for every metre of height (measured on the church tower), so roof outlines are read on a grid shifted
+by that much at eaves height, and the heights come from Street View. The file can also mark yards (`grounds`:
+gravel, paving or tarmac, such as Fortune Close itself, which OpenStreetMap doesn't map) and resurface
 mapped roads (`roads`: a gravel `surface`, or the `sidewalk` sides of an OSM way given by its `osm` id). To survey another building, `python3 tools/survey_grid.py E N BEARING U0 U1 W0 W1` prints the
 last-return heights (or `--layer intensity`) in a rotated grid to read the parts from.
 
