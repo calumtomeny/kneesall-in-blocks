@@ -189,21 +189,13 @@ function signCanvas(s) {
   const x = cv.getContext('2d');
   const font = (sz, w = 'bold') => `${w} ${sz}px "Transport", "Helvetica Neue", Arial, sans-serif`;
   x.textAlign = 'center'; x.textBaseline = 'middle';
-  if (s.style === 'speed') {
-    x.fillStyle = '#fff'; x.beginPath(); x.arc(pxW / 2, pxH / 2, pxW / 2 - 4, 0, 7); x.fill();
-    x.strokeStyle = '#c91a09'; x.lineWidth = pxW * 0.1; x.beginPath(); x.arc(pxW / 2, pxH / 2, pxW / 2 - pxW * 0.07, 0, 7); x.stroke();
-    x.fillStyle = '#111'; x.font = font(pxW * 0.42); x.fillText(s.text, pxW / 2, pxH / 2 + 8);
-    return { cv, round: true };
-  }
-  const bg = { village: '#ffffff', finger: '#ffffff', street: '#ffffff', pub: '#1d3b2a', school: '#0a3463', bus: '#ffffff' }[s.style] ?? '#fff';
-  const fg = { pub: '#e8c46a', school: '#ffffff' }[s.style] ?? '#111';
+  // the Rajdhaani's board is white with maroon lettering, the school's dark blue with white (Street View)
+  const bg = { pub: '#ffffff', school: '#0a3463', bus: '#ffffff' }[s.style] ?? '#fff';
+  const fg = { pub: '#7a1f2a', school: '#ffffff' }[s.style] ?? '#111';
   x.fillStyle = bg; x.fillRect(0, 0, pxW, pxH);
   x.strokeStyle = fg; x.lineWidth = 10; x.strokeRect(14, 14, pxW - 28, pxH - 28);
   x.fillStyle = fg;
-  if (s.style === 'village') {
-    x.font = font(pxH * 0.36); x.fillText(s.text, pxW / 2, pxH * 0.42);
-    x.font = font(pxH * 0.11, 'normal'); x.fillText('Please drive carefully', pxW / 2, pxH * 0.74);
-  } else if (s.style === 'pub') {
+  if (s.style === 'pub') {
     x.font = 'italic bold ' + pxH * 0.3 + 'px Georgia, serif'; x.fillText(s.text, pxW / 2, pxH / 2);
   } else {
     let sz = pxH * 0.5; x.font = font(sz);

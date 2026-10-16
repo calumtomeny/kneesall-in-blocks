@@ -197,7 +197,8 @@ export function buildKneesall(data) {
   const styleFor = (pts, name, type, cx, cz, b = {}) => {
     const zone = cz < -220 ? 'modern' : 'old';
     const ar = Math.abs(polyArea(pts));
-    if (type === 'school' || /school/i.test(name) || inArea('school', cx, cz)) return { wall: PAL.darkOrange, roof: PAL.dbg, floors: 1, door: PAL.blue, lintel: PAL.lbg, label: 'Kneesall CofE Primary Academy', chimneys: 0 };
+    // the school: red brick, green window frames and doors (Street View from School Lane)
+    if (type === 'school' || /school/i.test(name) || inArea('school', cx, cz)) return { wall: MATERIALS.redBrick, roof: PAL.dbg, floors: 1, door: PAL.darkGreen, frame: PAL.darkGreen, label: 'Kneesall CofE Primary Academy', chimneys: 0 };
     // the old Angel Inn, now the Rajdhaani restaurant: red brick over a white-painted ground floor (Street View)
     if (inArea('pub', cx, cz) && ar > 120) return { wall: MATERIALS.redBrick, groundWall: PAL.white, plinth: PAL.black, roof: PAL.dbg, floors: 2, door: PAL.white, porch: true, label: 'Rajdhaani', chimney: MATERIALS.redBrick };
     if (cafe && pointInPoly(cafe.x, cafe.z, pts)) return { wall: PAL.darkRed, roof: PAL.red, floors: 1, frame: PAL.reddishBrown, door: PAL.reddishBrown, label: 'Hay Barn Café', chimneys: 0 };
