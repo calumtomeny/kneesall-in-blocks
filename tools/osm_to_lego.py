@@ -65,7 +65,8 @@ def main(src, dst):
                 sides = [k for k in ('left', 'right') if t.get('sidewalk:' + k) not in (None, 'no', 'separate')]
                 sw = {0: 'no', 2: 'both'}.get(len(sides)) or sides[0]
             out['roads'].append({'id': w['id'], 'type': t['highway'], 'name': t.get('name', ''), 'pts': pts,
-                                 'surface': t.get('surface', ''), 'sidewalk': sw or '', 'area': t.get('area') == 'yes'})
+                                 'surface': t.get('surface', ''), 'sidewalk': sw or '', 'area': t.get('area') == 'yes',
+                                 'designation': t.get('designation', '')})
         else:
             kind = next((v for (k, val), v in AREA_KINDS.items() if t.get(k) == val), None)
             if kind and pts[0] == pts[-1]:
@@ -109,14 +110,18 @@ def pois(els, nodes, xy, inside):
 
 
 if __name__ == '__main__':
-    if '--pois-only' in sys.argv:
-        # refresh the points of interest in an existing data file, leaving the LIDAR and OS layers alone
+    if '--refresh' in sys.argv:
+        # refresh the points of interest, gates and rights of way in an existing data file, leaving the layers the
+        # LIDAR and OS steps added alone
         src, dst = [a for a in sys.argv[1:] if not a.startswith('--')]
         els = json.load(open(src))['elements']
         nodes = {e['id']: e for e in els if e['type'] == 'node'}
         data = json.load(open(dst))
         data['pois'] = pois(els, nodes, *projection())
+        des = {e['id']: e.get('tags', {}).get('designation', '') for e in els if e['type'] == 'way'}
+        for r in data['roads']:
+            r['designation'] = des.get(r['id'], '')
         json.dump(data, open(dst, 'w'), separators=(',', ':'))
-        print(len(data['pois']), 'points of interest')
+        print(len(data['pois']), 'points of interest,', sum(1 for r in data['roads'] if r['designation']), 'rights of way')
     else:
         main(*sys.argv[1:3])

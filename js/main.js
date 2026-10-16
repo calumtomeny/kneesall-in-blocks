@@ -915,6 +915,13 @@ function buildMinimap() {
     img.data[i * 4] = Math.min(255, (c.r ** (1 / 2.2)) * 255 * shade); img.data[i * 4 + 1] = Math.min(255, (c.g ** (1 / 2.2)) * 255 * shade); img.data[i * 4 + 2] = Math.min(255, (c.b ** (1 / 2.2)) * 255 * shade); img.data[i * 4 + 3] = 255;
   }
   x.putImageData(img, 0, 0);
+  // rights of way as the Ordnance Survey's Landranger maps show them: short red dashes for footpaths, long for bridleways
+  x.strokeStyle = '#d4291c'; x.lineWidth = 1.2; x.lineCap = 'butt';
+  for (const r of K.rightsOfWay ?? []) {
+    x.setLineDash(r.kind === 'public_bridleway' ? [6, 3] : [2.5, 2.5]);
+    x.beginPath(); r.pts.forEach(([px, pz], i) => (i ? x.lineTo : x.moveTo).call(x, px - BOUNDS.x0, pz - BOUNDS.z0)); x.stroke();
+  }
+  x.setLineDash([]);
   mapCtx = $('minimap').getContext('2d');
   allLabels = [...K.labels, ...W.labels];
 }
@@ -947,6 +954,8 @@ function updatePlace() {
     // otherwise name the road you're on/near
     let rd = Infinity;
     for (const r of K.namedRoads ?? []) { const d = distToPolyline(player.pos.x, player.pos.z, r.pts).d; if (d < 12 && d < rd) { rd = d; best = r.name === 'Newark Road' ? 'Newark Road (A616)' : r.name; } }
+    // or the public footpath or bridleway
+    if (!best) for (const r of K.rightsOfWay ?? []) if (distToPolyline(player.pos.x, player.pos.z, r.pts).d < 4) { best = r.kind === 'public_bridleway' ? 'Public bridleway' : 'Public footpath'; break; }
   }
   const name = best ?? 'Kneesall';
   if (name !== lastPlace) { lastPlace = name; $('place').textContent = name; }

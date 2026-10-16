@@ -10,7 +10,7 @@ python3 tools/serve.py        # then open http://localhost:8765
 
 | What | Source | Licence |
 |---|---|---|
-| Roads, names, church/restaurant/school/café, churchyard, hedges, woods, streams, poles, bus stops, gates and kissing gates | OpenStreetMap (Overpass API) | ODbL — © OpenStreetMap contributors |
+| Roads, names, church/restaurant/school/café, churchyard, hedges, woods, streams, poles, bus stops, gates and kissing gates, public footpaths and bridleways | OpenStreetMap (Overpass API) | ODbL — © OpenStreetMap contributors |
 | Pavements (which side of each road) | OpenStreetMap `sidewalk` tags; Street View for the roads without them (`roads` in `data/survey.json`) | ODbL / — |
 | Building outlines | Ordnance Survey OpenMap – Local (`SK_Building`, `SK_ImportantBuilding`) | OGL v3 — contains OS data © Crown copyright and database right |
 | Terrain, building and roof shapes (stud by stud), trees (evergreen or deciduous), hedgerows | Environment Agency LIDAR Composite DTM, First Return and Last Return DSM, 1 m | OGL v3 — © Environment Agency |
@@ -55,6 +55,13 @@ pass; wind and rain from the live weather; birdsong, busiest at the dawn chorus 
 night, and more of it among trees; and your footsteps, crisp on roads and pavements and soft on grass. St
 Bartholomew's clock is electric (1963) and nothing says it strikes, so it is silent. <kbd>N</kbd> turns the sound
 off and on.
+
+### Footpaths
+
+The public footpaths and bridleways OpenStreetMap maps round the village (west from the church, north from School
+Lane past the kissing gates, the track east and the path towards Eakring Road) are laid as paths you can walk, with
+their gates. The map shows them as the Ordnance Survey's Landranger maps do, in red dashes (short for footpaths,
+long for bridleways), and the place name says when you are on one.
 
 ### Roof materials
 
@@ -123,8 +130,8 @@ closed plain timber gate; where OSM gives a `maxheight` there is a lattice heigh
 ## Regenerating `data/`
 
 1. OpenStreetMap: download `data/osm-raw.json` with an Overpass query over
-   `(53.163,-0.966,53.177,-0.930)`, then `python3 tools/osm_to_lego.py data/osm-raw.json data/kneesall.json`. (`--pois-only` refreshes just the
-   points of interest and gates in an existing `data/kneesall.json`, leaving the layers later steps add)
+   `(53.163,-0.966,53.177,-0.930)`, then `python3 tools/osm_to_lego.py data/osm-raw.json data/kneesall.json`. (`--refresh` refreshes just the
+   points of interest, gates and rights of way in an existing `data/kneesall.json`, leaving the layers later steps add)
 2. OS OpenMap Local: download the `SK` shapefile zip from the OS Data Hub (`OpenMapLocal`, area `SK`)
    and unzip `SK_Building.*` and `SK_ImportantBuilding.*`.
 3. LIDAR: fetch 1 km GeoTIFFs for E 469880–470880, N 363760–364760 from the Environment Agency WCS

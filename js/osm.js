@@ -813,10 +813,12 @@ export function buildKneesall(data) {
   for (const q of newark ?? []) { if (inBounds(q[0], q[1], 3)) cur.push(q); else { if (cur.length > carPath.length) carPath = cur; cur = []; } }
   if (cur.length > carPath.length) carPath = cur;
   const namedRoads = roads.filter(r => r.name);
+  // public footpaths and bridleways (OpenStreetMap designation), for the map and the place name
+  const rightsOfWay = roads.filter(r => /^public_(footpath|bridleway)$/.test(r.designation ?? '')).map(r => ({ pts: r.pts, kind: r.designation }));
   const roadY = (x, z) => terrainY(x, z) + ROAD_TOP;
   let minY = Infinity; for (let i = 0; i < G.base.length; i++) minY = Math.min(minY, G.base[i]);
   G.minY = minY;
-  return { G, W, buildings, roadB, labels, wires, attribution: data.attribution, newark, carPath, namedRoads, terrainY, roadY };
+  return { G, W, buildings, roadB, labels, wires, attribution: data.attribution, newark, carPath, namedRoads, rightsOfWay, terrainY, roadY };
 }
 
 // Merge ground cells into row runs. Tops go in the studded/smooth builders; terrace sides (where the
