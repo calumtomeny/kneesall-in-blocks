@@ -105,7 +105,7 @@ export function house(W, o) {
   if (o.quoins) for (let y = 1; y < H; y += 2) for (const [x, z] of [[x0, z0], [x1, z0], [x0, z1], [x1, z1]]) W.set(x, y, z, o.quoins);
   // floor slab (hidden interior, stops looking hollow through windows)
   for (let z = z0 + 1; z < z1; z++) for (let x = x0 + 1; x < x1; x++) W.set(x, 0, z, PAL.reddishBrown, F_TILE | F_NOCOLLIDE);
-  // windows + door on the front, windows on the back
+  // windows + door on the front, regularly spaced windows on the back and one in each end wall
   const fz = front === 's' ? z1 : z0, bz = front === 's' ? z0 : z1;
   const out = front === 's' ? 1 : -1;
   const slots = [];
@@ -115,9 +115,9 @@ export function house(W, o) {
     for (const x of slots) {
       if (f === 0 && x === doorSlot) continue;
       windowIn(W, 'x', fz, x, 2, f * FH + 2, 3, { frame: o.frame, lintel: o.lintel });
-      if (R() < 0.7) windowIn(W, 'x', bz, x, 2, f * FH + 2, 3, { frame: o.frame, lintel: o.lintel });
+      windowIn(W, 'x', bz, x, 2, f * FH + 2, 3, { frame: o.frame, lintel: o.lintel });
     }
-    if (d >= 8 && R() < 0.6) windowIn(W, 'z', R() < 0.5 ? x0 : x1, z0 + Math.floor(d / 2) - 1, 2, f * FH + 2, 3, { frame: o.frame, lintel: o.lintel });
+    if (d >= 8) for (const x of [x0, x1]) windowIn(W, 'z', x, z0 + Math.floor(d / 2) - 1, 2, f * FH + 2, 3, { frame: o.frame, lintel: o.lintel });
   }
   doorIn(W, 'x', fz, doorSlot, 2, 5, { outward: out, color: o.door, frame: o.frame });
   if (o.porch) {
@@ -133,7 +133,8 @@ export function house(W, o) {
   const top = H + (ridge === 'x' ? (d + 2) / 2 : (w + 2) / 2) + 1;
   if (o.chimneys !== 0) {
     const ends = ridge === 'x' ? [[x0 + 1, Math.floor((z0 + z1) / 2)], [x1 - 2, Math.floor((z0 + z1) / 2)]] : [[Math.floor((x0 + x1) / 2), z0 + 1], [Math.floor((x0 + x1) / 2), z1 - 2]];
-    const n = o.chimneys ?? (R() < 0.5 ? 2 : 1);
+    // none unless someone has seen them
+    const n = Math.min(2, o.chimneys ?? 0);
     for (let i = 0; i < n; i++) chimney(W, ends[i][0], ends[i][1], H, top, ch);
   }
   if (o.label) W.labels.push({ name: o.label, x: (x0 + x1) / 2, z: (z0 + z1) / 2, r: Math.max(w, d) });

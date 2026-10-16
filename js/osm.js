@@ -10,7 +10,7 @@
 // Plain defaults where nothing is known: red brick walls, white front doors, regularly spaced windows.
 import * as THREE from 'three';
 import { World, Builder, PAL, BRICK, PLATE, F_TILE, F_HIDDEN, F_NOCOLLIDE, F_PLAIN, col, rng } from './bricks.js';
-import { R, pick, tree, hedge, postBox, bench, sign, streetLight } from './parts.js';
+import { R, tree, hedge, postBox, bench, sign, streetLight } from './parts.js';
 import { warMemorial, headstone } from './landmarks.js';
 import { buildingFromPolygon, buildingFromRect, churchFromPolygon, houseStyle, STYLES, MATERIALS, roofMaterial } from './buildings.js';
 import { surveyedBuildings, surveyGrounds, surveyRoads, fittedBuilding } from './survey.js';

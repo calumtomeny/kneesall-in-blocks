@@ -2,7 +2,7 @@
 // Each building is built axis-aligned in its own local voxel World and then rotated into place,
 // so walls stay straight even when the real building sits at an angle.
 import { World, PAL, F_TILE, F_NOCOLLIDE } from './bricks.js';
-import { R, pick, house, windowIn, doorIn, garageDoorIn, chimney, sign } from './parts.js';
+import { house, windowIn, doorIn, garageDoorIn, chimney, sign } from './parts.js';
 import { churchBuilding } from './landmarks.js';
 import { polyCells, dominantAngle, centroid } from './geo.js';
 import { roofPlan } from './roofs.js';
@@ -198,7 +198,7 @@ export function footprintBuilding(W, cells, o = {}) {
   }
   if (o.chimneys > 0) {
     const inner = list.filter(([x, z]) => level.get(x + ',' + z) >= 2 && has(x + 1, z) && has(x, z + 1) && has(x + 1, z + 1));
-    if (inner.length) { const [x, z] = pick(inner); chimney(W, x, z, H, H + maxL + 1, o.chimney ?? wall); }
+    if (inner.length) { const [x, z] = inner[inner.length >> 1]; chimney(W, x, z, H, H + maxL + 1, o.chimney ?? wall); }
   }
 }
 
@@ -334,7 +334,7 @@ export function lidarBuilding(W, { cells, top, roofCol, wallCol }, o = {}) {
     const ridge = list.filter(([x, z]) => T(x, z) >= maxT - 1 && !isB(x, z) && has(x + 1, z) && has(x, z + 1) && has(x + 1, z + 1))
       .sort((p, q) => p[0] - q[0] || p[1] - q[1]);
     const n = Math.min(ridge.length, o.chimneys ?? 0);
-    for (const [x, z] of n === 2 ? [ridge[0], ridge[ridge.length - 1]] : ridge.length ? [pick(ridge)] : []) {
+    for (const [x, z] of n >= 2 ? [ridge[0], ridge[ridge.length - 1]] : n === 1 ? [ridge[ridge.length >> 1]] : []) {
       const t = T(x, z);
       chimney(W, x, z, t - 1, t + 2, o.chimney ?? wall);
     }
