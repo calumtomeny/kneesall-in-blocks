@@ -208,8 +208,10 @@ const ck = (x, z) => Math.floor(x / CHUNK) + ',' + Math.floor(z / CHUNK);
 
 class ChunkSet {
   constructor() { this.m = new Map(); }
-  get(x, z) { const k = ck(x, z); let b = this.m.get(k); if (!b) { b = new Builder(); this.m.set(k, b); } return b; }
+  get(x, z) { return this.key(ck(x, z)); }
+  key(k) { let b = this.m.get(k); if (!b) { b = new Builder(); this.m.set(k, b); } return b; }
 }
+const M = CHUNK - 1;   // x & M === 0 at the first stud of a chunk
 
 // Split [s, s+len) at bond breaks (staggered every course) with bricks of max length 4
 function splitRun(s, len, y, phase) {
@@ -275,8 +277,9 @@ export function buildWorld(world) {
     for (const k of keys) {
       const v = L.get(k);
       const x = X(k), z = Z(k), B = baseAt(x, z);
-      if (!drawable(v) || used.has(k) || same(k - 1, v, B)) continue;
-      let e = k; while (same(e + 1, v, B)) e++;
+      // runs stop at chunk edges, so each chunk's near and far meshes cover exactly the same bricks
+      if (!drawable(v) || used.has(k) || ((x & M) && same(k - 1, v, B))) continue;
+      let e = k; while (((X(e) + 1) & M) && same(e + 1, v, B)) e++;
       if (e === k) continue;
       for (let i = k; i <= e; i++) used.add(i);
       for (const [a, b] of splitRun(x, e - k + 1, y, z & 1)) bricks.get(a, z).box(a, yb + B, z, b, yb + BRICK + B, z + 1, col(hexOf(v)), (v & F_PLAIN) ? PLAIN : undefined);
@@ -285,8 +288,8 @@ export function buildWorld(world) {
     for (const k of keys) {
       const v = L.get(k);
       const x = X(k), z = Z(k), B = baseAt(x, z);
-      if (!drawable(v) || used.has(k) || same(k - SPAN, v, B)) continue;
-      let e = k, n = 1; while (same(e + SPAN, v, B)) { e += SPAN; n++; }
+      if (!drawable(v) || used.has(k) || ((z & M) && same(k - SPAN, v, B))) continue;
+      let e = k, n = 1; while (((Z(e) + 1) & M) && same(e + SPAN, v, B)) { e += SPAN; n++; }
       for (let i = k; i <= e; i += SPAN) used.add(i);
       for (const [a, b] of splitRun(z, n, y, (x & 1) + 1)) bricks.get(x, a).box(x, yb + B, a, x + 1, yb + BRICK + B, b, col(hexOf(v)), (v & F_PLAIN) ? PLAIN : undefined);
     }
@@ -307,7 +310,7 @@ export function buildWorld(world) {
     const A = (t) => lowEdge - s.dir * t; // t=0 outer (low), t=1 inner (high)
     const g = GAP;
     const prof = [[A(g), yb], [A(1 - g * 0), yb], [A(1 - g * 0), yb + BRICK - g * 0.5], [A(g), yb + 0.22]];
-    for (const [a, b] of splitRun(s.l0, s.l1 - s.l0 + 1, s.y, s.u & 1)) {
+    for (const [c0, c1] of chunkSplit(s.l0, s.l1 + 1)) for (const [a, b] of splitRun(c0, c1 - c0, s.y, s.u & 1)) {
       const bx = s.axis === 'x' ? a : s.u, bz = s.axis === 'x' ? s.u : a;
       bricks.get(bx, bz).prism(prof, s.axis, a + g, b - g, col(s.hex));
     }
@@ -354,7 +357,87 @@ export function buildWorld(world) {
     bricks.get(x, z).box(x, 0, z, x + w, g.h * PLATE, z + d, col(g.c), { chamfer: 0.025, skipBottom: true, jitterAmt: 0.02 });
   }
 
-  return { bricks: bricks.m, ground: groundB.m, studs, glass };
+  return { bricks: bricks.m, far: farBricks(world, baseAt), ground: groundB.m, studs, glass };
+}
+
+// [s, e) cut where it crosses from one chunk into the next
+function chunkSplit(s, e) {
+  const out = [];
+  for (let a = s; a < e;) { const b = Math.min(e, Math.floor(a / CHUNK) * CHUNK + CHUNK); out.push([a, b]); a = b; }
+  return out;
+}
+
+// ---------------------------------------------------------------- far level of detail
+// From a distance the bevels and seams between bricks are far smaller than a pixel, so every chunk also gets a plain
+// version to draw instead: only the brick faces that can be seen (not those pressed against a neighbour), merged into
+// rectangles, slopes as whole runs, and the custom parts without bevels or their smallest pieces.
+const FACES = [   // outward direction and the key offset of the neighbour on that side
+  { d: [1, 0, 0], dk: 1 }, { d: [-1, 0, 0], dk: -1 }, { d: [0, 0, 1], dk: SPAN }, { d: [0, 0, -1], dk: -SPAN },
+  { d: [0, 1, 0], dk: SPAN2 }, { d: [0, -1, 0], dk: -SPAN2 },
+];
+function farBricks(world, baseAt) {
+  const far = new ChunkSet(), vox = world.vox;
+  const drawable = (v) => v !== undefined && !(v & F_HIDDEN);
+  // exposed faces, bucketed by direction, plane, colour, ground height and chunk; each holds [a, b] cells in the plane
+  const buckets = new Map();
+  for (const [k, v] of vox) {
+    if (!drawable(v)) continue;
+    const x = (k % SPAN) - OFF, z = (Math.floor(k / SPAN) % SPAN) - OFF, y = Math.floor(k / SPAN2) - 64;
+    const B = baseAt(x, z), hex = v & 0xffffff, chunk = ck(x, z);
+    for (let f = 0; f < 6; f++) {
+      const { d, dk } = FACES[f];
+      if (f === 5 && y === 0) continue;   // standing on the ground
+      const n = vox.get(k + dk);
+      if (drawable(n) && (f >= 4 || baseAt(x + d[0], z + d[2]) === B)) continue;
+      const [plane, a, b] = f < 2 ? [x, z, y] : f < 4 ? [z, x, y] : [y, x, z];
+      const key = f + '|' + plane + '|' + hex + '|' + B + '|' + chunk;
+      let q = buckets.get(key); if (!q) { q = { f, plane, hex, B, chunk, cells: new Set() }; buckets.set(key, q); }
+      q.cells.add((a + OFF) * SPAN + (b + OFF + 64));
+    }
+  }
+  for (const q of buckets.values()) {
+    const { f, plane, B, cells } = q, c = col(q.hex), s = f & 1 ? -1 : 1;
+    const out = far.key(q.chunk);
+    // greedy rectangles: along a as far as the row goes, then down b while every row below is complete
+    for (const c0 of [...cells].sort((p, r) => p - r)) {
+      if (!cells.has(c0)) continue;
+      let w = 1; while (cells.has(c0 + w * SPAN)) w++;
+      let h = 1; for (; ; h++) { let ok = true; for (let i = 0; i < w && ok; i++) ok = cells.has(c0 + i * SPAN + h); if (!ok) break; }
+      for (let i = 0; i < w; i++) for (let j = 0; j < h; j++) cells.delete(c0 + i * SPAN + j);
+      const a0 = Math.floor(c0 / SPAN) - OFF, b0 = (c0 % SPAN) - OFF - 64, a1 = a0 + w, b1 = b0 + h;
+      if (f < 4) {
+        // vertical face: a along x or z, b the brick layer
+        const p = plane + (s > 0 ? 1 : 0), y0 = b0 * BRICK + B, y1 = b1 * BRICK + B;
+        const P = f < 2 ? (u, y) => [p, y, u] : (u, y) => [u, y, p];
+        const back = f < 2 ? [p - s, (y0 + y1) / 2, (a0 + a1) / 2] : [(a0 + a1) / 2, (y0 + y1) / 2, p - s];
+        out.poly([P(a0, y0), P(a1, y0), P(a1, y1), P(a0, y1)], c, back);
+      } else {
+        const Y = (plane + (s > 0 ? 1 : 0)) * BRICK + B;
+        out.poly([[a0, Y, b0], [a1, Y, b0], [a1, Y, b1], [a0, Y, b1]], c, [(a0 + a1) / 2, Y - s, (b0 + b1) / 2]);
+      }
+    }
+  }
+  // slopes: one prism per run within a chunk, no seams
+  for (const s of world.slopes) {
+    const yb = s.y * BRICK + (s.axis === 'x' ? baseAt(s.l0, s.u) : baseAt(s.u, s.l0));
+    const lowEdge = s.u + (s.dir > 0 ? 1 : 0), A = (t) => lowEdge - s.dir * t;
+    const prof = [[A(0), yb], [A(1), yb], [A(1), yb + BRICK], [A(0), yb + 0.22]];
+    for (const [a, b] of chunkSplit(s.l0, s.l1 + 1)) far.get(s.axis === 'x' ? a : s.u, s.axis === 'x' ? s.u : a).prism(prof, s.axis, a, b, col(s.hex), { jitter: false });
+  }
+  // custom parts: plain boxes, the smallest pieces (door knobs and the like) left off, no second copy of the glass
+  const at = world.baseAt ? (x, z) => new Plain(new Shifted(far.get(x, z), baseAt(x, z))) : (x, z) => new Plain(far.get(x, z));
+  const noGlass = { box() {} };
+  for (const fn of world.extras) fn({ at, glass: noGlass });
+  return far.m;
+}
+
+class Plain {
+  constructor(b) { this.b = b; }
+  box(x0, y0, z0, x1, y1, z1, c, o = {}) { if (Math.max(x1 - x0, y1 - y0, z1 - z0) >= 0.3) this.b.box(x0, y0, z0, x1, y1, z1, c, { ...o, chamfer: 0, jitter: false }); }
+  plainBox(ctr, h, c) { this.b.plainBox(ctr, h, c); }
+  poly(pts, c, ctr) { this.b.poly(pts, c, ctr); }
+  prism(prof, axis, l0, l1, c, o) { this.b.prism(prof, axis, l0, l1, c, o); }
+  geom(g, m, c, o) { this.b.geom(g, m, c, o); }
 }
 
 // Stud geometry with a slightly rounded top edge (catches the light like the real thing)

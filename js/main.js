@@ -22,6 +22,7 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.85;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.autoUpdate = false;   // redrawn by updateShadows when something has moved
 document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -30,7 +31,10 @@ const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.08, 3
 window.__dbg.camera = camera;
 
 // ------------------------------------------------------------------ sky, sun, environment
-const sky = new Sky(); sky.scale.setScalar(4000); scene.add(sky);
+// The sky's scattering shader is too costly to run over the screen every frame, so each time of day draws it once
+// into a cube map for the background, and blurred for the environment light.
+const skyScene = new THREE.Scene(), sky = new Sky(); sky.scale.setScalar(1000); skyScene.add(sky);
+const skyCam = new THREE.CubeCamera(1, 2000, new THREE.WebGLCubeRenderTarget(512, { type: THREE.HalfFloatType }));
 const su = sky.material.uniforms;
 su.turbidity.value = 4; su.rayleigh.value = 1.2; su.mieCoefficient.value = 0.004; su.mieDirectionalG.value = 0.8;
 const sun = new THREE.DirectionalLight(0xffffff, 3);
@@ -44,7 +48,6 @@ const hemi = new THREE.HemisphereLight(0xcfe3ff, 0x5d7a3e, 0.55); scene.add(hemi
 scene.fog = new THREE.Fog(0xc9d9e8, 220, 1100);
 
 const pmrem = new THREE.PMREMGenerator(renderer);
-const envScene = new THREE.Scene(); const envSky = new Sky(); envSky.scale.setScalar(1000); envScene.add(envSky);
 let envRT = null;
 
 const TIMES = [
@@ -61,12 +64,12 @@ function applyTime() {
   const el = THREE.MathUtils.degToRad(t.elev), az = THREE.MathUtils.degToRad(t.az);
   sunDir.set(Math.cos(el) * Math.sin(az), Math.sin(el), -Math.cos(el) * Math.cos(az));
   su.sunPosition.value.copy(sunDir);
-  const eu = envSky.material.uniforms;
-  for (const k of ['turbidity', 'rayleigh', 'mieCoefficient', 'mieDirectionalG']) eu[k].value = su[k].value;
-  eu.sunPosition.value.copy(sunDir);
+  skyCam.update(renderer, skyScene);
+  scene.background = skyCam.renderTarget.texture;
   if (envRT) envRT.dispose();
-  envRT = pmrem.fromScene(envScene, 0.02);
+  envRT = pmrem.fromScene(skyScene, 0.02);
   scene.environment = envRT.texture;
+  shadowsDirty = true;
   scene.environmentIntensity = 0.55;
   sun.color.set(t.sunCol); sun.intensity = t.sunI; hemi.intensity = t.hemiI;
   scene.fog.color.set(t.fog); renderer.toneMappingExposure = t.exp;
@@ -93,16 +96,19 @@ let toastTimer = 0;
 function showToast(t) { const e = $('toast'); e.textContent = t; e.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => e.classList.remove('show'), 1800); }
 
 // ------------------------------------------------------------------ build the village
-let K, G, W, BOUNDS, studChunks = [], dynamic = { clouds: [] };
+let K, G, W, BOUNDS, studChunks = [], brickChunks = [], dynamic = { clouds: [] };
 const groundStuds = new Map();
-const stud = { hi: studGeometry(12, true), lo: studGeometry(6, false) };
+const stud = { hi: studGeometry(10, true), lo: studGeometry(6, false) };
 
 // Turn a voxel World into meshes under `parent`; `place` (optional) maps local->world for LOD tests
 function addWorldMeshes(world, parent, place) {
   const out = buildWorld(world);
-  for (const [, b] of out.bricks) {
-    if (!b.n) continue;
-    const m = new THREE.Mesh(b.toGeometry(), brickMat); m.castShadow = true; m.receiveShadow = true; parent.add(m);
+  // each chunk of bricks has a near (bevelled bricks) and a far (plain faces) mesh; updateWorld shows one of them
+  for (const k of new Set([...out.bricks.keys(), ...out.far.keys()])) {
+    const mesh = (b) => { if (!b?.n) return null; const m = new THREE.Mesh(b.toGeometry(), brickMat); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; };
+    const near = mesh(out.bricks.get(k)), far = mesh(out.far.get(k));
+    const s = (near ?? far).geometry.boundingSphere, [wx, wz] = place ? place.toWorld(s.center.x, s.center.z) : [s.center.x, s.center.z];
+    brickChunks.push({ near, far, x: wx, z: wz, r: s.radius });
   }
   if (out.glass.n) { const g = new THREE.Mesh(out.glass.toGeometry(), glassMat); g.renderOrder = 2; parent.add(g); }
   const m4 = new THREE.Matrix4(), c = new THREE.Color();
@@ -138,7 +144,7 @@ async function build() {
   status('Laying baseplates…'); await nextFrame();
   let t0 = performance.now();
   K = buildKneesall(data);
-  G = K.G; W = K.W; window.__dbg.K = K;
+  G = K.G; W = K.W; Object.assign(window.__dbg, { K, brickChunks, studChunks });
   BOUNDS = { x0: -G.half, x1: G.half - 1, z0: -G.half, z1: G.half - 1 };
   console.log('osm', (performance.now() - t0) | 0, 'ms', K.buildings.length, 'buildings'); t0 = performance.now();
 
@@ -609,33 +615,52 @@ function updateWorld(dt, t) {
     const d = new Date(); const h = d.getHours() % 12 + d.getMinutes() / 60, m = d.getMinutes() + d.getSeconds() / 60;
     dynamic.clock.hr.rotation.z = -h / 12 * Math.PI * 2; dynamic.clock.mn.rotation.z = -m / 60 * Math.PI * 2;
   }
-  // shadow camera follows the player, snapped to texels to avoid shimmering
-  const p = player.pos;
-  const tex = (2 * SR) / 4096;
-  const cx = Math.round(p.x / tex) * tex, cz = Math.round(p.z / tex) * tex;
-  sun.target.position.set(cx, 0, cz);
-  sun.position.set(cx + sunDir.x * 300, sunDir.y * 300, cz + sunDir.z * 300);
+  updateShadows(t);
+  // brick level of detail: bevelled bricks near the camera, plain faces further off
+  for (const c of brickChunks) {
+    const near = Math.hypot(c.x - camera.position.x, c.z - camera.position.z) - c.r < LOD_NEAR;
+    if (c.near) c.near.visible = near || !c.far;
+    if (c.far) c.far.visible = !near || !c.near;
+  }
   // stud level-of-detail
   for (const s of studChunks) {
     const d = Math.hypot(s.x - camera.position.x, s.z - camera.position.z);
-    s.near.visible = d < 45;
-    s.far.visible = d >= 45 && d < 110;
+    s.near.visible = d < STUD_NEAR;
+    s.far.visible = d >= STUD_NEAR && d < STUD_FAR;
   }
   streamGroundStuds();
 }
 
+// The shadow camera follows the player in steps of about two studs (a whole number of shadow texels, so edges don't
+// shimmer), and the shadow map is redrawn only when it moves, the minifig is on show, the sun changes or the clouds
+// have drifted a little
+let shadowsDirty = true, shadowAt = '', shadowT = 0, figPose = '';
+function updateShadows(t) {
+  const tex = (2 * SR) / sun.shadow.mapSize.x, step = tex * Math.round(2 / tex);
+  const cx = Math.round(player.pos.x / step) * step, cz = Math.round(player.pos.z / step) * step, at = cx + ',' + cz;
+  const pose = player.third ? [player.pos.x, player.pos.y, player.pos.z, player.yaw, moveSpeed > 0.1].join() : '';
+  if (!shadowsDirty && at === shadowAt && pose === figPose && t - shadowT < 0.5) return;
+  shadowsDirty = false; shadowAt = at; shadowT = t; figPose = pose;
+  sun.target.position.set(cx, 0, cz);
+  sun.position.set(cx + sunDir.x * 300, sunDir.y * 300, cz + sunDir.z * 300);
+  renderer.shadowMap.needsUpdate = true;
+}
+
+const LOD_NEAR = 40;   // studs from a chunk's bounding sphere to the camera within which its bricks are bevelled
+const STUD_NEAR = 35, STUD_FAR = 90;   // rounded studs within STUD_NEAR of a chunk's centre, plain ones out to STUD_FAR
+
 // Real stud geometry on the baseplate is created on demand around the camera (the texture covers the rest)
 const GS = 16;
 function streamGroundStuds() {
-  const cx = Math.floor(camera.position.x / GS), cz = Math.floor(camera.position.z / GS), R = Math.ceil(110 / GS);
+  const cx = Math.floor(camera.position.x / GS), cz = Math.floor(camera.position.z / GS), R = Math.ceil(STUD_FAR / GS);
   let made = 0;
   for (let j = -R; j <= R; j++) for (let i = -R; i <= R; i++) {
     const k = (cx + i) + ',' + (cz + j);
     const ch = groundStuds.get(k);
     const mx = (cx + i + 0.5) * GS, mz = (cz + j + 0.5) * GS;
     const d = Math.hypot(mx - camera.position.x, mz - camera.position.z);
-    if (ch) { if (ch.near) { ch.near.visible = d < 45; ch.far.visible = d >= 45 && d < 110; } continue; }
-    if (d > 110 || made > 6) continue;
+    if (ch) { if (ch.near) { ch.near.visible = d < STUD_NEAR; ch.far.visible = d >= STUD_NEAR && d < STUD_FAR; } continue; }
+    if (d > STUD_FAR || made > 6) continue;
     made++;
     const a = [];
     for (let z = (cz + j) * GS; z < (cz + j + 1) * GS; z++) for (let x = (cx + i) * GS; x < (cx + i + 1) * GS; x++) {
@@ -649,7 +674,7 @@ function streamGroundStuds() {
     near.computeBoundingSphere(); near.receiveShadow = true;
     const far = new THREE.InstancedMesh(stud.lo, studMat, n);
     far.instanceMatrix = near.instanceMatrix; far.instanceColor = near.instanceColor; far.boundingSphere = near.boundingSphere; far.receiveShadow = true;
-    near.visible = d < 45; far.visible = d >= 45 && d < 110;
+    near.visible = d < STUD_NEAR; far.visible = d >= STUD_NEAR && d < STUD_FAR;
     scene.add(near, far);
     groundStuds.set(k, { near, far });
   }
@@ -751,7 +776,8 @@ function loop(now) {
   updateCamera(dt);
   updateWorld(dt, now / 1000);
   if (gtao) gtao.enabled = aoOn;
-  if (composer) composer.render(); else renderer.render(scene, camera);
+  // the composer is only needed for ambient occlusion; without it, straight to the screen
+  if (composer && aoOn) composer.render(); else renderer.render(scene, camera);
   drawMinimap(); updatePlace();
   // adaptive quality: if the first few seconds are slow, drop AO and resolution
   if (!perfChecked && started) {
@@ -761,7 +787,7 @@ function loop(now) {
       const fps = frames / perfT;
       if (fps < 30) {
         aoOn = false; pixelRatio = Math.min(pixelRatio, 1); renderer.setPixelRatio(pixelRatio);
-        sun.shadow.mapSize.set(2048, 2048); sun.shadow.map?.dispose(); sun.shadow.map = null;
+        sun.shadow.mapSize.set(2048, 2048); sun.shadow.map?.dispose(); sun.shadow.map = null; shadowsDirty = true;
         if (composer) { composer.setPixelRatio(pixelRatio); composer.setSize(innerWidth, innerHeight); }
         showToast('Reduced quality for smoother framerate (O toggles AO)');
       }
