@@ -240,9 +240,13 @@
     {
       "at": [53.173301, -0.950686],
       "roof": "concreteTile",
-      "source": "Street View (older imagery) for walls; aerial photograph (Google, imagery 2026) for the roof",
+      "source": "Street View (older imagery) for walls and windows; aerial photograph (Google, imagery 2026) for the roof",
       "wall": "redBrick",
-      "notes": "1970s detached red-brick house on Baulk Lane, integral garage"
+      "front": 74,
+      "doors": [],
+      "windows": [[0.5], 0],
+      "frame": "white",
+      "notes": "1970s detached red-brick house on Baulk Lane, integral garage; gable end to the lane with one small white window"
     },
     {
       "at": [53.173029, -0.950588],
@@ -261,9 +265,17 @@
     {
       "at": [53.172868, -0.950532],
       "roof": "concreteTile",
-      "source": "Street View (older imagery) for walls; aerial photograph (Google, imagery 2026) for the roof",
+      "source": "Street View (older imagery) for walls, doors and windows; aerial photograph (Google, imagery 2026) for the roof",
       "wall": "redBrick",
-      "notes": "1970s detached red-brick house on Baulk Lane, integral garage"
+      "front": 74,
+      "doors": [0.68],
+      "windows": [[0.49, 0.87], [0.49, 0.68, 0.86]],
+      "chimneys": [0.47],
+      "porch": "gable",
+      "frame": "white",
+      "door": "white",
+      "garages": [[0.18, "white"]],
+      "notes": "1970s detached red-brick house on Baulk Lane, attached garage with a white up-and-over door on the left, white door under a small gabled canopy, bay window, stack at the middle of the ridge"
     },
     {
       "at": [53.172715, -0.950458],
@@ -279,7 +291,7 @@
       "notes": "1970s detached red-brick house on Baulk Lane, integral garage, wooden door under a gabled porch, white windows"
     },
     {"at": [53.172749, -0.949928], "wall": "redBrick", "front": 250, "doors": [0.35, 0.5], "windows": [3, 4], "frame": "white", "door": "white", "notes": "Terrace of red-brick houses facing Baulk Lane, white windows and doors", "source": "Street View from Baulk Lane (older imagery, as served 2026-10-16)"},
-    {"at": [53.172635, -0.949876], "wall": "redBrick", "front": 253, "frame": "white", "door": "white", "notes": "South end of the terrace facing Baulk Lane", "source": "Street View from Baulk Lane (older imagery, as served 2026-10-16)"},
+    {"at": [53.172635, -0.949876], "wall": "redBrick", "front": 253, "doors": [0.24], "windows": [[0.49, 0.81], [0.23, 0.48, 0.75]], "chimneys": [0.8], "frame": "white", "door": "white", "notes": "South end of the terrace facing Baulk Lane: white door up two steps, a small window beside it, stack towards the south end", "source": "Street View from Baulk Lane (older imagery, as served 2026-10-16)"},
     {
       "at": [53.17257, -0.950368],
       "roof": "concreteTile",
