@@ -308,20 +308,27 @@ function addSigns(world, parent) {
 
 function addClocks(world, parent) {
   for (const c of world.clocks || []) {
+    // a skeleton dial: gilded chapter ring, Roman numerals and hands fixed straight onto the stone
     const cv = document.createElement('canvas'); cv.width = cv.height = 256;
-    const x = cv.getContext('2d');
-    x.fillStyle = '#0a3463'; x.beginPath(); x.arc(128, 128, 126, 0, 7); x.fill();
-    x.strokeStyle = '#d9b44a'; x.lineWidth = 8; x.beginPath(); x.arc(128, 128, 118, 0, 7); x.stroke();
-    x.fillStyle = '#d9b44a';
-    for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; x.fillRect(128 + Math.sin(a) * 95 - 5, 128 - Math.cos(a) * 95 - 10, 10, 20); }
+    const x = cv.getContext('2d'), gold = '#c9971f';
+    x.strokeStyle = gold; x.fillStyle = gold;
+    for (const r of [122, 84]) { x.lineWidth = 9; x.beginPath(); x.arc(128, 128, r, 0, 7); x.stroke(); }
+    x.font = 'bold 34px Georgia, serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    const ROMAN = ['XII', 'I', 'II', 'III', 'IIII', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI'];
+    ROMAN.forEach((n, i) => {
+      const a = i / 12 * Math.PI * 2;
+      x.save(); x.translate(128 + Math.sin(a) * 104, 128 - Math.cos(a) * 104); x.rotate(a); x.fillText(n, 0, 1); x.restore();
+    });
     const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
-    const m = new THREE.Mesh(new THREE.CircleGeometry(2.2, 40), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.35, metalness: 0.1 }));
-    m.position.set(c.x, c.y, c.z); m.rotation.y = Math.PI;
+    const R = 1.5, turn = { n: Math.PI, w: -Math.PI / 2, s: 0, e: Math.PI / 2 }[c.face ?? 'n'];
+    const nx = Math.sin(turn) * 0.05, nz = Math.cos(turn) * 0.05;
+    const m = new THREE.Mesh(new THREE.CircleGeometry(R, 40), new THREE.MeshStandardMaterial({ map: tex, alphaTest: 0.5, roughness: 0.35, metalness: 0.4 }));
+    m.position.set(c.x + nx, c.y, c.z + nz); m.rotation.y = turn;
     parent.add(m);
-    const hands = new THREE.Group(); hands.position.set(c.x, c.y, c.z - 0.05); hands.rotation.y = Math.PI;
+    const hands = new THREE.Group(); hands.position.set(c.x + 2 * nx, c.y, c.z + 2 * nz); hands.rotation.y = turn;
     const hm = new THREE.MeshStandardMaterial({ color: 0xd9b44a, metalness: 0.6, roughness: 0.3 });
-    const hr = new THREE.Mesh(new THREE.BoxGeometry(0.16, 1.1, 0.05), hm); hr.geometry.translate(0, 0.5, 0);
-    const mn = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.7, 0.05), hm); mn.geometry.translate(0, 0.8, 0);
+    const hr = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.75, 0.05), hm); hr.geometry.translate(0, 0.33, 0);
+    const mn = new THREE.Mesh(new THREE.BoxGeometry(0.09, 1.15, 0.05), hm); mn.geometry.translate(0, 0.52, 0);
     hands.add(hr, mn); parent.add(hands);
     dynamic.clock = { hr, mn };
   }

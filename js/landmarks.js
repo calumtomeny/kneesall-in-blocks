@@ -1,4 +1,4 @@
-// Landmark builds: St Bartholomew's Church, war memorial, farm animals, bus shelter.
+// Landmark builds: St Bartholomew's Church, war memorial, headstones.
 import * as THREE from 'three';
 import { PAL, BRICK, F_TILE, F_HIDDEN, F_NOCOLLIDE, col } from './bricks.js';
 import { R, house, windowIn, doorIn, gableRoof, bench } from './parts.js';
@@ -17,8 +17,8 @@ export function churchBuilding(W) {
   // buttresses at corners
   for (const [x, z] of [[tx0 - 1, tz0], [tx0, tz0 - 1], [tx0 + T, tz0], [tx0 + T - 1, tz0 - 1], [tx0 - 1, tz0 + T - 1], [tx0, tz0 + T], [tx0 + T, tz0 + T - 1], [tx0 + T - 1, tz0 + T]])
     for (let y = 0; y < 18; y++) if (y < 18 - Math.abs((x + z) % 3)) W.set(x, y, z, stone());
-  // battlements
-  for (let i = 0; i < T; i++) if (i % 2 === 0) for (const [x, z] of [[tx0 + i, tz0], [tx0 + i, tz0 + T - 1], [tx0, tz0 + i], [tx0 + T - 1, tz0 + i]]) W.set(x, TH, z, PAL.lbg);
+  // panelled parapet (solid, not battlemented)
+  for (let i = 0; i < T; i++) for (const [x, z] of [[tx0 + i, tz0], [tx0 + i, tz0 + T - 1], [tx0, tz0 + i], [tx0 + T - 1, tz0 + i]]) W.set(x, TH, z, PAL.lbg);
   for (let z = tz0 + 1; z < tz0 + T - 1; z++) for (let x = tx0 + 1; x < tx0 + T - 1; x++) W.set(x, TH - 1, z, PAL.dbg, F_TILE);
   // pinnacles
   W.extras.push(({ at }) => {
@@ -27,10 +27,6 @@ export function churchBuilding(W) {
       b.geom(new THREE.CylinderGeometry(0.42, 0.42, 1.6, 12), new THREE.Matrix4().makeTranslation(x + 0.5, (TH + 1) * BRICK + 0.8, z + 0.5), col(PAL.lbg));
       b.geom(new THREE.ConeGeometry(0.5, 2.6, 12), new THREE.Matrix4().makeTranslation(x + 0.5, (TH + 1) * BRICK + 2.9, z + 0.5), col(PAL.lbg));
     }
-    // weathervane
-    const b = at(tx0 + 5, tz0 + 5);
-    b.geom(new THREE.CylinderGeometry(0.08, 0.08, 4, 6), new THREE.Matrix4().makeTranslation(tx0 + 5, TH * BRICK + 2, tz0 + 5), col(PAL.pearlGold));
-    b.box(tx0 + 4.2, TH * BRICK + 3.4, tz0 + 4.95, tx0 + 5.8, TH * BRICK + 3.9, tz0 + 5.05, col(PAL.pearlGold), { chamfer: 0.02, gap: 0 });
   });
   // west door, west window, belfry openings, clock
   doorIn(W, 'z', tx0, tz0 + 4, 2, 6, { color: PAL.reddishBrown, frame: PAL.dbg, outward: -1 });
@@ -39,7 +35,8 @@ export function churchBuilding(W) {
     const a0 = axis === 'x' ? tx0 + 3 : tz0 + 3;
     louvre(W, axis, fixed, a0, 4, 22, 4);
   }
-  W.clocks = [{ x: tx0 + 5, y: 16 * BRICK + 1.2, z: tz0 - 0.05, face: 'n' }];
+  // the dial is on the west face, above the west window (Southwell & Nottingham Church History Project)
+  W.clocks = [{ x: tx0, y: 16 * BRICK + 1.2, z: tz0 + 5, face: 'w' }];
 
   // Nave with clerestory, x 4..29 z 22..29; aisles z 17..21 and z 30..34; chancel x 30..41
   const nx0 = 4, nx1 = 29, nz0 = 21, nz1 = 30, NH = 16;
@@ -69,6 +66,15 @@ export function churchBuilding(W) {
   for (let y = 0; y < CH; y++) { for (let x = cx0; x <= cx1; x++) { W.set(x, y, cz0, stone()); W.set(x, y, cz1, stone()); } for (let z = cz0; z <= cz1; z++) W.set(cx1, y, z, stone()); }
   gableRoof(W, cx0, cz0, cx1, cz1, CH, PAL.dbg, PAL.lbg, 'x');
   churchWindow(W, 'z', cx1, cz0 + 2, 4, 2, 7);  // Perpendicular east window
+  // crocketed pinnacles on the corners of the east gable (listing)
+  W.extras.push(({ at }) => {
+    // standing on the eaves corners of the gable, clear of the roof
+    for (const z of [cz0 - 0.5, cz1 + 1.5]) {
+      const b = at(cx1, Math.floor(z)), y0 = (CH + 1) * BRICK;
+      b.geom(new THREE.CylinderGeometry(0.32, 0.32, 1.4, 12), new THREE.Matrix4().makeTranslation(cx1 + 0.5, y0 + 0.7, z), col(PAL.lbg));
+      b.geom(new THREE.ConeGeometry(0.4, 2.2, 12), new THREE.Matrix4().makeTranslation(cx1 + 0.5, y0 + 2.5, z), col(PAL.lbg));
+    }
+  });
   churchWindow(W, 'x', cz0, cx0 + 3, 2, 2, 5); churchWindow(W, 'x', cz1, cx0 + 3, 2, 2, 5);
   churchWindow(W, 'x', cz0, cx0 + 7, 2, 2, 5); churchWindow(W, 'x', cz1, cx0 + 7, 2, 2, 5);
   // south porch
