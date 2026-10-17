@@ -1193,6 +1193,9 @@ function touchEnd(e) {
     if (touch.look && t.identifier === touch.look.id) touch.look = null;
   }
 }
+// iOS Safari pinch-zooms the page whatever the viewport tag and touch-action say, unless its gestures are refused
+for (const g of ['gesturestart', 'gesturechange']) document.addEventListener(g, (e) => e.preventDefault(), { passive: false });
+document.addEventListener('touchmove', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 renderer.domElement.addEventListener('touchend', touchEnd, { passive: true });
 renderer.domElement.addEventListener('touchcancel', touchEnd, { passive: true });
 
