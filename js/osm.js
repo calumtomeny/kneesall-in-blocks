@@ -390,23 +390,51 @@ export function buildKneesall(data) {
     // finder missed), not a hedge standing on the ground: it keeps to knee height there, and counts as knee high in
     // its neighbours' medians, so a hedgerow dips to meet a tree instead of stepping down at it.
     const N = G.n, seen = new Uint8Array(N * N), stack = [], cells = [], hedgeCells = [];
-    const fringe = new Uint8Array(N * N), KNEE = 0.8;
-    for (let s = 0; s < N * N; s++) {
-      if (hedgeMask[s] !== 1 || seen[s]) continue;
+    const fringe = new Uint8Array(N * N), KNEE = 0.8, compSize = new Uint16Array(N * N);
+    const flood = (s, inSet) => {
       cells.length = 0; stack.push(s); seen[s] = 1;
       while (stack.length) {
         const c = stack.pop(); cells.push(c);
         const cx = c % N, cz = (c - cx) / N;
         for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
           const nx = cx + dx, nz = cz + dz, k = nz * N + nx;
-          if (nx >= 0 && nz >= 0 && nx < N && nz < N && hedgeMask[k] === 1 && !seen[k]) { seen[k] = 1; stack.push(k); }
+          if (nx >= 0 && nz >= 0 && nx < N && nz < N && inSet(k) && !seen[k]) { seen[k] = 1; stack.push(k); }
         }
       }
+    };
+    // Growth over 4.5 m with no trunk found in it is mostly the canopy of trees the finder missed, but where it is a
+    // narrow line (no cell more than two from open ground) it is a tall hedge round a garden, a field hedge left to
+    // grow up, or a line of trees whose crowns weren't found. Evergreen ones (leylandii, holly, yew) stand at their
+    // LIDAR height (to 9 m), the top evened like the low hedges'; deciduous ones get the hedgerow such lines grow
+    // from, to 2.5 m, as the crowns above can't be told apart. Lines that only ring a drawn crown are that crown's
+    // overhang, not a hedge.
+    const tallHedge = new Uint8Array(N * N), canopy = (k) => k >= 0 && (hedgeMask[k] === 2 || nearTree[k]);
+    const nearCrown = (c) => { const x = c % N - half, z = (c - c % N) / N - half;
+      for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) { const k = G.i(x + dx, z + dz); if (k >= 0 && nearTree[k]) return true; } return false; };
+    for (let s = 0; s < N * N; s++) {
+      if (hedgeMask[s] !== 2 || seen[s] || nearCrown(s)) continue;
+      flood(s, (k) => hedgeMask[k] === 2 && !nearCrown(k));
+      if (cells.length < 4) continue;
+      let core = 0;
+      for (const c of cells) {
+        const x = c % N - half, z = (c - c % N) / N - half; let all = true;
+        for (let dz = -2; dz <= 2 && all; dz++) for (let dx = -2; dx <= 2; dx++) if (!canopy(G.i(x + dx, z + dz))) { all = false; break; }
+        if (all) core++;
+      }
+      if (core <= cells.length * 0.1) for (const c of cells) tallHedge[c] = 1;
+    }
+    seen.fill(0);
+    for (let s = 0; s < N * N; s++) {
+      if (hedgeMask[s] !== 1 || seen[s]) continue;
+      flood(s, (k) => hedgeMask[k] === 1);
       if (cells.length < 3) { for (const c of cells) hedgeMask[c] = 0; continue; }
       for (const c of cells) {
         const x = c % N - half, z = (c - c % N) / N - half;
-        for (let dz = -2; dz <= 2 && !fringe[c]; dz++) for (let dx = -2; dx <= 2; dx++) if (ndsm(x + dx, z + dz) > 4.5) { fringe[c] = 1; break; }
-        hedgeCells.push(c);
+        for (let dz = -2; dz <= 2 && !fringe[c]; dz++) for (let dx = -2; dx <= 2; dx++) {
+          const k = G.i(x + dx, z + dz);
+          if (ndsm(x + dx, z + dz) > 4.5 && !(k >= 0 && tallHedge[k])) { fringe[c] = 1; break; }
+        }
+        hedgeCells.push(c); compSize[c] = Math.min(65535, cells.length);
       }
     }
     const around = [];
@@ -426,6 +454,46 @@ export function buildKneesall(data) {
       const cols = evergreen[c] ? EVERGREEN_HEDGE : hedgeCols;
       for (let y = 0; y < top; y++) W.set(x, y, z, hedgeBrick(cols, x, y, z), F_PLAIN);
       hedgeTop[c] = top;
+    }
+    for (let c = 0; c < N * N; c++) {
+      if (!tallHedge[c]) continue;
+      const x = c % N - half, z = (c - c % N) / N - half;
+      around.length = 0;
+      for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) { const k = G.i(x + dx, z + dz); if (k >= 0 && tallHedge[k]) around.push(ndsm(x + dx, z + dz)); }
+      around.sort((a, b) => a - b);
+      const top = Math.round(Math.min(evergreen[c] ? 9 : 2.5, around[around.length >> 1]) * KWALL), cols = evergreen[c] ? EVERGREEN_HEDGE : hedgeCols;
+      for (let y = 0; y < top; y++) W.set(x, y, z, hedgeBrick(cols, x, y, z), F_PLAIN);
+      hedgeTop[c] = top; compSize[c] = 65535;
+    }
+    // A hedgerow runs on under the trees that grow out of it, where the LIDAR sees only their crowns: a cell under a
+    // crown (or tall growth, or the knee-high fringe beside it) between two full-height stretches of hedge in line, up
+    // to 16 cells apart, is raised to the lower of their heights, round the trunk. Gaps over open ground of more than
+    // two cells are left: those are gateways.
+    const drawn = hedgeTop.map((t, i) => fringe[i] ? 0 : t), under = (i) => nearTree[i] || hedgeMask[i] === 2 || fringe[i];
+    const blocked = (i) => i < 0 || clearGround[i] || (G.occ[i] & (1 | 64 | 8 | 2));
+    const steps = [[1, 0], [0, 1], [1, 1], [1, -1]];
+    const reach = (x, z, dx, dz) => {   // the hedge cell first met that way: [top, cells of open ground crossed]
+      let open = 0;
+      for (let k = 1; k <= 16; k++) {
+        const i = G.i(x + dx * k, z + dz * k);
+        if (blocked(i)) return null;
+        if (drawn[i]) return compSize[i] >= 8 ? [drawn[i], open] : null;
+        if (!under(i) && ++open > 2) return null;
+      }
+      return null;
+    };
+    for (let z = -half + 1; z < half - 1; z++) for (let x = -half + 1; x < half - 1; x++) {
+      const i = G.i(x, z);
+      if (drawn[i] || blocked(i) || !under(i)) continue;
+      let top = 0;
+      for (const [dx, dz] of steps) {
+        const a = reach(x, z, dx, dz); if (!a) continue;
+        const b = reach(x, z, -dx, -dz); if (!b || a[1] + b[1] > 2) continue;
+        top = Math.max(top, Math.min(a[0], b[0]));
+      }
+      if (top <= hedgeTop[i]) continue;
+      for (let y = 0; y < top; y++) if (!W.has(x, y, z)) W.set(x, y, z, hedgeBrick(evergreen[i] ? EVERGREEN_HEDGE : hedgeCols, x, y, z), F_PLAIN);
+      hedgeTop[i] = top; hedgeMask[i] = 1;
     }
   }
 
