@@ -1195,7 +1195,16 @@ function touchEnd(e) {
 }
 // iOS Safari pinch-zooms the page whatever the viewport tag and touch-action say, unless its gestures are refused
 for (const g of ['gesturestart', 'gesturechange']) document.addEventListener(g, (e) => e.preventDefault(), { passive: false });
+// a second finger is refused as it comes down (Safari settles on a pinch then, before anything moves), except on the
+// bottom row, whose taps need their clicks; the walking and looking touches are the canvas's own and already refused
+document.addEventListener('touchstart', (e) => { if (e.touches.length > 1 && !e.target.closest?.('#touchbar')) e.preventDefault(); }, { passive: false });
 document.addEventListener('touchmove', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+// and if the page is zoomed all the same (a browser set to allow zoom everywhere), put it back
+const viewportTag = document.querySelector('meta[name=viewport]');
+visualViewport?.addEventListener('resize', () => {
+  if (visualViewport.scale <= 1.01) return;
+  const c = viewportTag.content; viewportTag.content = c + ', minimum-scale=1'; requestAnimationFrame(() => { viewportTag.content = c; });
+});
 renderer.domElement.addEventListener('touchend', touchEnd, { passive: true });
 renderer.domElement.addEventListener('touchcancel', touchEnd, { passive: true });
 
