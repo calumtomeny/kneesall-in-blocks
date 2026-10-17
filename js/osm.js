@@ -290,13 +290,25 @@ export function buildKneesall(data) {
       if (b.roof === 'hip') o.hip = true;
       if (b.roof === 'flat') { o.roofCap = 0; o.chimneys = 0; }
       // a point on the front wall (details "frontAt", lat/lon) picks it out where a lower range has the longer wall
-      if (seen?.frontAt && b.fit && data.bng) {
-        const [x, z] = project(seen.frontAt), { o: O, A } = data.bng, f = b.fit.frame, br = f.bearing * Math.PI / 180;
+      // a world stud point -> (u, w) metres in the fit's frame
+      const toFit = ([x, z]) => {
+        const { o: O, A } = data.bng, f = b.fit.frame, br = f.bearing * Math.PI / 180;
         const dE = O[0] + A[0][0] * x + A[0][1] * z - f.E, dN = O[1] + A[1][0] * x + A[1][1] * z - f.N;
-        o.frontAt = [dE * Math.sin(br) + dN * Math.cos(br), -dE * Math.cos(br) + dN * Math.sin(br)];   // (u, w) metres
+        return [dE * Math.sin(br) + dN * Math.cos(br), -dE * Math.cos(br) + dN * Math.sin(br)];
+      };
+      if (seen?.frontAt && b.fit && data.bng) o.frontAt = toFit(project(seen.frontAt));
+      // A small shed or garage the fitter took as one rectangle well inside its OS outline (under half its area, or
+      // a 2 m sliver of a building 3.5 m or more across) stood as a thin wall with a door: aerial photographs show the
+      // OS outline is right, so the rectangle takes the outline's extent and keeps its measured roof
+      let fit = b.fit;
+      if (fit && data.bng && !b.lidarOnly && fit.parts.length === 1 && b.areaM2 < 80) {
+        const p = fit.parts[0], uw = b.pts.map(toFit);
+        const U = [Math.min(...uw.map(q => q[0])), Math.max(...uw.map(q => q[0]))], Wd = [Math.min(...uw.map(q => q[1])), Math.max(...uw.map(q => q[1]))];
+        const side = (r) => r[1] - r[0], fitSide = Math.min(side(p.u), side(p.w)), osSide = Math.min(side(U), side(Wd));
+        if (side(p.u) * side(p.w) < 0.5 * b.areaM2 || (fitSide <= 2 && osSide >= 3.5)) fit = { ...fit, parts: [{ ...p, u: U, w: Wd }] };
       }
       // measured parts from tools/fit_buildings.py where the LIDAR covers the building, else the outline
-      const fitted = b.fit && data.bng && fittedBuilding(b.fit, data.bng, o, front);
+      const fitted = fit && data.bng && fittedBuilding(fit, data.bng, o, front);
       addBuilding(fitted || buildingFromPolygon(b.pts, front, o));
     }
   } else {
