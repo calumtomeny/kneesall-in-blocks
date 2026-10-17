@@ -133,10 +133,12 @@ Hedges and garden shrubs are the LIDAR's low growth: whatever stands 1 to 4.5 m 
 tree crown, a building or a road. Each stands as tall as the laser measured it, at the same scale as the walls and
 houses, with its top evened over its neighbours (so a clipped hedge stays flat and a shrub keeps its dome). Specks of
 one or two studs (a bin, a garden ornament) are left out, and low growth beside canopy over 4.5 m stays knee high,
-since that is mostly the drooping edge of a crown rather than a hedge on the ground. The survey was flown with the
+since that is mostly the drooping edge of a crown rather than a hedge on the ground (a hedgerow dips to meet a tree
+rather than stepping down at it). The survey was flown with the
 leaves off, so where the last return stops near the top of the growth the hedge is evergreen (privet, laurel, box,
 conifer, clipped yew; `tools/tree_kinds.py`): those stay dark green all year, while the rest are bare from December
-to March and turn in the autumn. Hedges OpenStreetMap maps out in the fields take the LIDAR's height where it has one.
+to March, stay mostly green through October (hawthorn turns later than the trees) and turn in November. Each hedge
+brick takes one of a few colours for the month, like the leaves on the trees. Hedges OpenStreetMap maps out in the fields take the LIDAR's height where it has one.
 Fences are too thin for the 1 m LIDAR to trace, so the only fences are those recorded from Street View.
 
 ### Fitted buildings

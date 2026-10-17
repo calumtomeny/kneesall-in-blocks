@@ -51,10 +51,14 @@ export function foliage(month) {
   return { greens: [PAL.darkOrange, PAL.orange, PAL.reddishBrown, PAL.yellow], keep: 0.5 };
 }
 
-// hedgerows, bare twigs in winter: [main colour, the occasional brick]
+// hedges, a few colours mixed brick by brick (repeats weight them): bare twigs in winter; hawthorn and blackthorn
+// hedges stay mostly green through October, turning later than the trees
 export function hedgeColours(month) {
-  if (month <= 3 || month === 12) return [PAL.brown, PAL.olive];
-  if (month === 4) return [PAL.green, PAL.lime];
-  if (month >= 10) return [PAL.olive, PAL.darkOrange];
-  return [PAL.darkGreen, PAL.green];
+  if (month <= 3 || month === 12) return [PAL.brown, PAL.brown, PAL.brown, PAL.olive];
+  if (month === 4) return [PAL.green, PAL.green, PAL.lime];
+  if (month === 10) return [PAL.darkGreen, PAL.darkGreen, PAL.green, PAL.olive];
+  if (month === 11) return [PAL.olive, PAL.olive, PAL.darkOrange, PAL.brown];
+  return [PAL.darkGreen, PAL.darkGreen, PAL.green];
 }
+// evergreen hedges and shrubs, all year
+export const EVERGREEN_HEDGE = [PAL.darkGreen, PAL.darkGreen, PAL.darkGreen, PAL.green];

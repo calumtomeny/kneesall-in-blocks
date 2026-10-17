@@ -15,7 +15,7 @@ import { warMemorial, headstone } from './landmarks.js';
 import { buildingFromPolygon, buildingFromRect, churchFromPolygon, houseStyle, STYLES, MATERIALS, roofMaterial } from './buildings.js';
 import { surveyedBuildings, surveyedChurch, surveyGrounds, surveyRoads, fittedBuilding } from './survey.js';
 import { KWALL } from './roofs.js';
-import { cropLook, foliage, hedgeColours } from './seasons.js';
+import { cropLook, foliage, hedgeColours, EVERGREEN_HEDGE } from './seasons.js';
 import { polyCells, pointInPoly, lineCells, distToPolyline, polylineLength, pointAlong, chainPolylines, ribbonY, ribbonSurface, paintY, arcAt, centroid, polyArea } from './geo.js';
 
 const ROAD = {
@@ -63,7 +63,13 @@ export class Ground {
 
 export function buildKneesall(data) {
   // the month the village is shown in (data.month, or this month): crops, leaves and hedges follow it
-  const month = data.month ?? new Date().getMonth() + 1, leaves = foliage(month), [hedgeC, hedgeAlt] = hedgeColours(month);
+  const month = data.month ?? new Date().getMonth() + 1, leaves = foliage(month), hedgeCols = hedgeColours(month);
+  // a hedge brick's colour from its palette, the same every time the village is built
+  const hedgeBrick = (cols, x, y, z) => {
+    let h = Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(z, 1274126177);
+    h = Math.imul(h ^ (h >>> 13), 1103515245); h ^= h >>> 16;
+    return cols[(h >>> 0) % cols.length];
+  };
   const half = data.half;
   const G = new Ground(half);
   const W = new World();
@@ -378,11 +384,13 @@ export function buildKneesall(data) {
     const evergreen = new Uint8Array(G.n * G.n);
     for (const [z, x0, x1] of data.evergreen ?? []) for (let x = x0; x <= x1; x++) { const i = G.i(x, z); if (i >= 0) evergreen[i] = 1; }
     // Each hedge stands as tall as the LIDAR measured it, at the walls' scale (KWALL layers a metre), its top evened
-    // over the cells round it (the median, so a clipped hedge stays flat and a shrub keeps its dome). Specks of one
-    // or two cells (a bin, a garden ornament, a fence post) go. Where canopy over 4.5 m stands within two cells, the
-    // low growth is mostly the drooping edge of that crown (wider than the one drawn, or a tree the finder missed),
-    // not a hedge standing on the ground: it keeps to knee height there, as before.
-    const N = G.n, seen = new Uint8Array(N * N), stack = [], cells = [];
+    // over the cells within two of it (the median, so a clipped hedge stays flat and a shrub keeps its dome). Specks
+    // of one or two cells (a bin, a garden ornament, a fence post) go. Where canopy over 4.5 m stands within two
+    // cells, the low growth is mostly the drooping edge of that crown (wider than the one drawn, or a tree the
+    // finder missed), not a hedge standing on the ground: it keeps to knee height there, and counts as knee high in
+    // its neighbours' medians, so a hedgerow dips to meet a tree instead of stepping down at it.
+    const N = G.n, seen = new Uint8Array(N * N), stack = [], cells = [], hedgeCells = [];
+    const fringe = new Uint8Array(N * N), KNEE = 0.8;
     for (let s = 0; s < N * N; s++) {
       if (hedgeMask[s] !== 1 || seen[s]) continue;
       cells.length = 0; stack.push(s); seen[s] = 1;
@@ -396,19 +404,28 @@ export function buildKneesall(data) {
       }
       if (cells.length < 3) { for (const c of cells) hedgeMask[c] = 0; continue; }
       for (const c of cells) {
-        const x = c % N - half, z = (c - c % N) / N - half, around = [];
-        let fringe = false;
+        const x = c % N - half, z = (c - c % N) / N - half;
+        for (let dz = -2; dz <= 2 && !fringe[c]; dz++) for (let dx = -2; dx <= 2; dx++) if (ndsm(x + dx, z + dz) > 4.5) { fringe[c] = 1; break; }
+        hedgeCells.push(c);
+      }
+    }
+    const around = [];
+    for (const c of hedgeCells) {
+      const x = c % N - half, z = (c - c % N) / N - half;
+      let top;
+      if (fringe[c]) top = ndsm(x, z) > 1.7 ? 2 : 1;
+      else {
+        around.length = 0;
         for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) {
-          const k = G.i(x + dx, z + dz); if (k < 0) continue;
-          if (ndsm(x + dx, z + dz) > 4.5) fringe = true;
-          if (hedgeMask[k] === 1 && Math.abs(dx) <= 1 && Math.abs(dz) <= 1) around.push(ndsm(x + dx, z + dz));
+          const k = G.i(x + dx, z + dz);
+          if (k >= 0 && hedgeMask[k] === 1) around.push(fringe[k] ? Math.min(KNEE, ndsm(x + dx, z + dz)) : ndsm(x + dx, z + dz));
         }
         around.sort((a, b) => a - b);
-        const top = fringe ? (ndsm(x, z) > 1.7 ? 2 : 1) : Math.max(1, Math.round(around[around.length >> 1] * KWALL));
-        const [main, alt] = evergreen[c] ? [PAL.darkGreen, PAL.green] : [hedgeC, hedgeAlt];
-        for (let y = 0; y < top; y++) W.set(x, y, z, ((x * 3 + z * 5 + y * 7) % 23 === 0) ? alt : main, F_PLAIN);
-        hedgeTop[c] = top;
+        top = Math.max(1, Math.round(around[around.length >> 1] * KWALL));
       }
+      const cols = evergreen[c] ? EVERGREEN_HEDGE : hedgeCols;
+      for (let y = 0; y < top; y++) W.set(x, y, z, hedgeBrick(cols, x, y, z), F_PLAIN);
+      hedgeTop[c] = top;
     }
   }
 
@@ -712,8 +729,8 @@ export function buildKneesall(data) {
     if (l.kind === 'hedge') lineCells(l.pts, 0.75, (x, z) => {
       if (G.has(x, z, 1 | 64 | 8) || !inBounds(x, z, 1)) return;
       const h = ndsm(x, z), top = h >= 1 && h <= 4.5 ? Math.max(2, Math.round(h * KWALL)) : 2;
-      const alt = R() < 0.1;
-      for (let y = 0; y < top; y++) W.set(x, y, z, y === 1 && alt ? hedgeAlt : hedgeC, F_PLAIN);
+      R();   // (a draw kept so that everything placed after the hedges stays where it was)
+      for (let y = 0; y < top; y++) W.set(x, y, z, hedgeBrick(hedgeCols, x, y, z), F_PLAIN);
       hedgeTop[G.i(x, z)] = Math.max(hedgeTop[G.i(x, z)], top);
       if (!lidar && R() < 0.02) tree(W, x, z, { r: 3.5 + R() * 2 });
     });
