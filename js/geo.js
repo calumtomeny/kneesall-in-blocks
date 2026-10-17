@@ -73,6 +73,21 @@ export function lineCells(pts, halfW, fn) {
   }
 }
 
+// The cells a one-stud line follows, joined edge to edge: lineCells at half a stud, plus, wherever two of its cells
+// meet only at a corner (a line on the diagonal), whichever of the two cells beside them lies nearer the line
+export function lineCells4(pts, fn) {
+  const cells = new Map();
+  lineCells(pts, 0.5, (x, z, d) => cells.set(x + ',' + z, [x, z, d]));
+  const has = (x, z) => cells.has(x + ',' + z);
+  for (const [x, z] of [...cells.values()]) for (const [dx, dz] of [[1, 1], [1, -1]]) {
+    if (!has(x + dx, z + dz) || has(x + dx, z) || has(x, z + dz)) continue;
+    const a = [x + dx, z], b = [x, z + dz], da = distToPolyline(a[0] + 0.5, a[1] + 0.5, pts).d, db = distToPolyline(b[0] + 0.5, b[1] + 0.5, pts).d;
+    const [cx, cz, d] = da <= db ? [...a, da] : [...b, db];
+    cells.set(cx + ',' + cz, [cx, cz, d]);
+  }
+  for (const [x, z, d] of cells.values()) fn(x, z, d);
+}
+
 export function distToPolyline(px, pz, pts) {
   let best = { d: Infinity };
   for (let i = 0; i + 1 < pts.length; i++) {

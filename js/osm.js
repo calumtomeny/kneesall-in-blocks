@@ -16,7 +16,7 @@ import { buildingFromPolygon, buildingFromRect, churchFromPolygon, houseStyle, S
 import { surveyedBuildings, surveyedChurch, surveyGrounds, surveyRoads, fittedBuilding } from './survey.js';
 import { KWALL } from './roofs.js';
 import { cropLook, foliage, hedgeColours, EVERGREEN_HEDGE } from './seasons.js';
-import { polyCells, buildingCells, pointInPoly, lineCells, distToPolyline, polylineLength, pointAlong, chainPolylines, ribbonY, ribbonSurface, paintY, arcAt, centroid, polyArea } from './geo.js';
+import { polyCells, buildingCells, pointInPoly, lineCells, lineCells4, distToPolyline, polylineLength, pointAlong, chainPolylines, ribbonY, ribbonSurface, paintY, arcAt, centroid, polyArea } from './geo.js';
 
 const ROAD = {
   primary: { hw: 5, col: PAL.dbg, pave: true },
@@ -865,7 +865,7 @@ export function buildKneesall(data) {
     }
     const open = w.style === 'railings' || w.style === 'picket' || w.style === 'rails', posts = new Set();
     if (w.style === 'rails') for (let s = 0, L = polylineLength(pts); s <= L; s += 2 / mps) { const p = pointAlong(pts, Math.min(s, L - 0.01)); posts.add(Math.floor(p.x) + ',' + Math.floor(p.z)); }
-    lineCells(pts, 0.5, (x, z) => {
+    lineCells4(pts, (x, z) => {
       if (G.has(x, z, 1 | 2 | 64) || !inBounds(x, z, 1)) return;
       if (open) {
         const ht = hedgeTop[G.i(x, z)], odd = (x + z) & 1;
