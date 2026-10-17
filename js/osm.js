@@ -283,6 +283,12 @@ export function buildKneesall(data) {
       if (RF) o.heightAt = roofHeight;
       if (b.roof === 'hip') o.hip = true;
       if (b.roof === 'flat') { o.roofCap = 0; o.chimneys = 0; }
+      // a point on the front wall (details "frontAt", lat/lon) picks it out where a lower range has the longer wall
+      if (seen?.frontAt && b.fit && data.bng) {
+        const [x, z] = project(seen.frontAt), { o: O, A } = data.bng, f = b.fit.frame, br = f.bearing * Math.PI / 180;
+        const dE = O[0] + A[0][0] * x + A[0][1] * z - f.E, dN = O[1] + A[1][0] * x + A[1][1] * z - f.N;
+        o.frontAt = [dE * Math.sin(br) + dN * Math.cos(br), -dE * Math.cos(br) + dN * Math.sin(br)];   // (u, w) metres
+      }
       // measured parts from tools/fit_buildings.py where the LIDAR covers the building, else the outline
       const fitted = b.fit && data.bng && fittedBuilding(b.fit, data.bng, o, front);
       addBuilding(fitted || buildingFromPolygon(b.pts, front, o));

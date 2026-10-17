@@ -298,10 +298,17 @@ export function lidarBuilding(W, { cells, top, roofCol, wallCol }, o = {}) {
     }
     if (o.windows !== false) for (let f = 0; f < 3; f++) for (let a of f === 0 ? slots : upper) {
       if (f === 0 && (doors.includes(a) || inGarage(a))) continue;
-      // an upstairs window under a narrow front gable may need to slide a stud to fit under its peak
-      if (!tallAt(r, a, f * 6 + 4)) a = f > 0 ? [a - 1, a + 1].find(b => b >= r.start && b < r.end && tallAt(r, b, f * 6 + 4)) : undefined;
-      if (a === undefined) continue;
-      windowIn(W, axis, r.fixed, a, 2, f * 6 + 2, 3, { frame: o.frame, lintel: o.lintel });
+      // an upstairs window under a narrow front gable may need to slide a stud to fit under its peak; on a house of
+      // that many storeys whose eaves are a layer or two too low, it sits lower, tucked up under them as on old cottages
+      let y0 = f * 6 + 2;
+      if (!tallAt(r, a, f * 6 + 4)) {
+        const b = f > 0 ? [a - 1, a + 1].find(b => b >= r.start && b < r.end && tallAt(r, b, f * 6 + 4)) : undefined;
+        const tuck = f > 0 && f < (o.floors ?? 2) ? [1, 2].find(k => tallAt(r, a, f * 6 + 4 - k)) : undefined;
+        if (b !== undefined) a = b;
+        else if (tuck) y0 -= tuck;
+        else continue;
+      }
+      windowIn(W, axis, r.fixed, a, 2, y0, 3, { frame: o.frame, lintel: o.lintel });
     }
     for (const g of garages) {
       let ok = true; for (let a = g.a0; a + 1 < g.a0 + g.w; a++) ok &&= tallAt(r, a, 5);
