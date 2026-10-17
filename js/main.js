@@ -286,6 +286,8 @@ async function build() {
   const qm = +new URLSearchParams(location.search).get('month');
   MONTH = qm >= 1 && qm <= 12 ? qm : new Date().getMonth() + 1; data.month = MONTH;
   if (data.attribution) $('osm').innerHTML = data.attribution.replace('OpenStreetMap contributors', '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors');
+  if (data.crome) $('osm').innerHTML += '; crop map © Rural Payments Agency (OGL v3)';
+  if (traffic.data) $('osm').innerHTML += '; traffic and bus data from the Department for Transport (OGL v3)';
   status('Laying baseplates…'); await nextFrame();
   let t0 = performance.now();
   K = buildKneesall(data);

@@ -31,10 +31,12 @@ or a clock time such as `time=07:45`,
 | Building shapes as clean parts (every building) | Fitted to the LIDAR by `tools/fit_buildings.py` | as above |
 | Weather now (cloud, rain, snow, wind) | Open-Meteo forecast API, fetched live | CC BY 4.0 — Weather data by Open-Meteo.com |
 | Crop in each field | Rural Payments Agency Crop Map of England (CROME) 2024, majority per hedge-bounded field (`tools/crome.py`) | OGL v3 — © Rural Payments Agency copyright and/or database right 2024 |
-| Traffic on Newark Road: how many vehicles, of what kind, which way, by hour and day | Department for Transport road traffic statistics: count point 91065 (annual average daily flow 2025, and manual counts by hour and direction) and table TRA0307 (`tools/traffic.py`) | OGL v3 — contains DfT data |
-| The 733 school bus | Bus Open Data Service timetables (GTFS, East Midlands) | OGL v3 |
+| Traffic on Newark Road: how many vehicles, of what kind, which way, by hour and day | Department for Transport road traffic statistics: count point 91065 (annual average daily flow 2025; manual counts by hour, direction and vehicle type on six days 2001–2021, some filed under the site's earlier number, 27375) and the national hour-by-weekday table TRA0307 (2025) (`tools/traffic.py`) | OGL v3 — contains DfT data |
+| The 733 school bus: times, stops, school days | Bus Open Data Service timetables (GTFS, East Midlands, feed of 17 October 2026) | OGL v3 |
 | Car colours | SMMT new car registrations by colour, 2025 | — |
-| Hand-surveyed buildings, walls, doors, windows, chimneys, labels (`data/survey.json`) | Measured from the LIDAR; observed in Street View and aerial photographs (Oct 2026) and recorded by hand | — |
+| Hand-surveyed buildings and house fronts (doors, windows, porches, garages, chimneys), walls, gates, yards, road signs, street lights, road markings, Give Way lines, gates on paths, labels (`data/survey.json`) | Measured from the LIDAR; observed in Google Street View (imagery from 2009 to 2025, looked at in October 2026) and Google and Bing aerial photographs, and recorded by hand. Each entry says where it was seen | — |
+| Where the sun and moon are, and the moon's phase | Worked out from the date and time (low-precision astronomical formulae, as in the suncalc library) | — |
+| Crops and leaves through the year | A typical East Midlands farming and leaf calendar (`js/seasons.js`), not records of these fields | — |
 
 Nothing is made up. Where no data says what something looks like, it gets a plain default: red brick walls and
 white front doors on houses nobody has looked at, and regularly spaced windows on walls not seen from a road. The
@@ -70,7 +72,7 @@ The village is shown in the current month (or `?month=1`…`12`; <kbd>Y</kbd> st
 where you stand). Each field follows the usual farming calendar for its CROME crop: winter wheat and barley green
 through the winter, ripe in July (barley first) and stubble after harvest; oilseed rape yellow in April and May;
 spring beans, maize and beet on bare soil until they come up. These are typical East Midlands dates, not records of
-these fields. Deciduous trees are bare from December to March, fresh in April and turn in October and November;
+these fields. Deciduous trees are bare from December to March (limbs from the trunk, and the twigs on them), fresh in April and turn in October and November;
 the evergreens (see `tools/tree_kinds.py`) stay as they are. `js/seasons.js` holds the calendars.
 
 ### Weather
@@ -231,12 +233,15 @@ Steps 4–8b add to the JSON written by step 1, so run them in that order.
 
 ## Code
 
-- `js/main.js` – renderer, sky, controls, collision, traffic (and the bus), minimap
-- `js/osm.js` – turns the data into ground, roads, buildings, trees and hedges
+- `js/main.js` – renderer, sky, sun and moon, night lighting, controls, links, collision, traffic (and the bus), minimap
+- `js/osm.js` – turns the data into ground, roads, drives and yards, buildings, trees and hedges
+- `js/geo.js` – geometry: polygons and lines to stud cells, distances along roads, road surfaces and paint
+- `js/seasons.js`, `js/sound.js` – the crop and leaf calendars; the synthesised sounds
 - `js/roofs.js` – turns the LIDAR heights over a footprint into a roof height per stud
 - `js/buildings.js` – fits LEGO buildings onto real footprints (walls and roofs from `roofs.js`, or a gable/hipped/flat roof without LIDAR), and roof materials
 - `js/survey.js` – builds buildings from measured parts (fitted or hand-surveyed), yards and drives from `data/survey.json`
 - `tools/fit_buildings.py`, `tools/survey_grid.py`, `tools/streetview_bearings.py` – fit every building's parts from the LIDAR; print LIDAR grids for surveying; which buildings a Street View panorama sees
 - `js/bricks.js` – voxel world → merged, bevelled brick geometry, and a plain version of each chunk (only the faces that show, merged into rectangles) drawn from a distance
 - `js/parts.js`, `js/landmarks.js`, `js/actors.js` – houses, street furniture, church, the player's minifig, the cars, vans, lorries, buses and motorbikes
-- `tools/` – data converters (OSGB grid conversion, shapefile and GeoTIFF readers), dev server
+- `tools/osm_to_lego.py`, `tools/os_lidar.py`, `tools/lidar_roofs.py`, `tools/crome.py`, `tools/tree_kinds.py`, `tools/hard_ground.py`, `tools/traffic.py` – build `data/` (see "Regenerating `data/`")
+- `tools/` also has the OSGB grid conversion, shapefile and GeoTIFF readers, and the dev server

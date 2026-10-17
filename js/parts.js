@@ -193,14 +193,45 @@ export function tree(W, x, z, o = {}) {
   const R2 = Math.ceil(r);
   const inside = cone ? (dx, dy, dz) => dy >= 0 && dy <= cone && Math.hypot(dx, dz) <= Math.max(0.6, r * (1 - dy / cone))
     : (dx, dy, dz) => (dx * dx + dz * dz) / (r * r) + (dy * dy) / (ry * ry) <= 1;
+  const put = (dx, dy, dz, c) => { const y = Math.round(cy + dy); if (y >= 2 && !W.has(x + dx, y, z + dz)) W.set(x + dx, y, z + dz, c, F_NOCOLLIDE | F_PLAIN); };
+  const thin = o.keep < 1, key = (dx, dy, dz) => dx + ',' + dy + ',' + dz;
+  const twigs = new Map();   // a thin crown's leaves or twigs, kept below only where they hang off a limb
   for (let dy = cone ? 0 : -Math.ceil(ry); dy <= Math.ceil(ry); dy++) for (let dz = -R2; dz <= R2; dz++) for (let dx = -R2; dx <= R2; dx++) {
     if (!inside(dx, dy, dz)) continue;
     const shell = !inside(dx + 1, dy, dz) || !inside(dx - 1, dy, dz) || !inside(dx, dy + 1, dz) || !inside(dx, dy - 1, dz) || !inside(dx, dy, dz + 1) || !inside(dx, dy, dz - 1);
     if (!shell && !(dx === 0 && dz === 0)) continue;
     if (shell && R() < 0.12 && dy > -ry + 1) continue; // ragged edge
-    if (o.keep < 1 && !(dx === 0 && dz === 0) && R() > o.keep) continue;   // thin crowns: spring, autumn, bare winter twigs
-    const y = Math.round(cy + dy); if (y < 2) continue;
-    if (!W.has(x + dx, y, z + dz)) W.set(x + dx, y, z + dz, dy > ry * 0.3 && R() < 0.5 ? greens[0] : pick(greens), F_NOCOLLIDE | F_PLAIN);
+    const c = dy > ry * 0.3 && R() < 0.5 ? greens[0] : pick(greens);
+    if (!thin || (dx === 0 && dz === 0)) put(dx, dy, dz, c);
+    else if (R() < Math.min(1, o.keep * 1.6)) twigs.set(key(dx, dy, dz), [dx, dy, dz, c]);   // spring, autumn, bare winter twigs
+  }
+  if (!thin) return;
+  // A thin crown (bare in winter, sparse in spring and autumn) would otherwise leave blocks hanging in the air: limbs
+  // run up and out from the trunk to the crown's edge, block against block, and only the twigs joined to them (by a
+  // face or an edge, not just a corner) stay
+  const reached = [], n = 5 + Math.floor(r);
+  for (let i = 0; i < n; i++) {
+    const th = (i + R() * 0.7) / n * Math.PI * 2, y0 = -ry * 0.5 + R() * ry * 0.6, reach = r * (0.8 + R() * 0.2), y1 = Math.min(ry * 0.85, y0 + reach * 0.8);
+    let p = [0, Math.round(y0), 0];
+    limb: for (let t = 0; t <= 1; t += 0.4 / reach) {
+      const q = [Math.round(Math.cos(th) * reach * t), Math.round(y0 + (y1 - y0) * t), Math.round(Math.sin(th) * reach * t)];
+      // one axis at a time, so each block sits against the last
+      for (const a of [1, 0, 2]) while (p[a] !== q[a]) {
+        p = [...p]; p[a] += Math.sign(q[a] - p[a]);
+        if (!inside(p[0], p[1], p[2])) break limb;
+        put(p[0], p[1], p[2], PAL.reddishBrown); reached.push(p);
+      }
+    }
+  }
+  for (let dy = -Math.ceil(ry); dy <= Math.ceil(ry); dy++) if (inside(0, dy, 0)) reached.push([0, dy, 0]);
+  while (reached.length) {
+    const [ax, ay, az] = reached.pop();
+    for (let ddy = -1; ddy <= 1; ddy++) for (let ddz = -1; ddz <= 1; ddz++) for (let ddx = -1; ddx <= 1; ddx++) {
+      if (Math.abs(ddx) + Math.abs(ddy) + Math.abs(ddz) > 2) continue;
+      const k = key(ax + ddx, ay + ddy, az + ddz), tw = twigs.get(k);
+      if (!tw) continue;
+      twigs.delete(k); put(tw[0], tw[1], tw[2], tw[3]); reached.push([tw[0], tw[1], tw[2]]);
+    }
   }
 }
 
