@@ -24,7 +24,7 @@ or a clock time such as `time=07:45`,
 | Roads, names, church/restaurant/school/café, churchyard, hedges, woods, streams, poles, bus stops, gates and kissing gates, public footpaths and bridleways | OpenStreetMap (Overpass API) | ODbL — © OpenStreetMap contributors |
 | Pavements (which side of each road) | OpenStreetMap `sidewalk` tags; Street View for the roads without them (`roads` in `data/survey.json`) | ODbL / — |
 | Building outlines | Ordnance Survey OpenMap – Local (`SK_Building`, `SK_ImportantBuilding`) | OGL v3 — contains OS data © Crown copyright and database right |
-| Terrain, building and roof shapes (stud by stud), trees (evergreen or deciduous), hedgerows | Environment Agency LIDAR Composite DTM, First Return and Last Return DSM, 1 m | OGL v3 — © Environment Agency |
+| Terrain, building and roof shapes (stud by stud), trees and hedges (their heights, evergreen or deciduous) | Environment Agency LIDAR Composite DTM, First Return and Last Return DSM, 1 m | OGL v3 — © Environment Agency |
 | Drives, yards and car parks (tarmac or gravel) | Environment Agency National LIDAR Programme intensity, 2022, with the DTM and DSMs (`tools/hard_ground.py`) | OGL v3 — © Environment Agency |
 | Roof materials (slate, brown tile, pantile, sheeting, felt) | Environment Agency National LIDAR Programme intensity, 2022 | OGL v3 — © Environment Agency |
 | Old Hall, Old Hall Cottage, war memorial positions; the church's doors, windows and pinnacles | Historic England listings (via Wikipedia; the church's from the Southwell & Nottingham Church History Project) | — |
@@ -73,7 +73,7 @@ where you stand). Each field follows the usual farming calendar for its CROME cr
 through the winter, ripe in July (barley first) and stubble after harvest; oilseed rape yellow in April and May;
 spring beans, maize and beet on bare soil until they come up. These are typical East Midlands dates, not records of
 these fields. Deciduous trees are bare from December to March (limbs from the trunk, and the twigs on them), fresh in April and turn in October and November;
-the evergreens (see `tools/tree_kinds.py`) stay as they are. `js/seasons.js` holds the calendars.
+the evergreen trees and hedges (see `tools/tree_kinds.py`) stay as they are. `js/seasons.js` holds the calendars.
 
 ### Weather
 
@@ -127,6 +127,18 @@ photographs at the school, the Hay Barn Cafe, the yard off School Lane and along
 pavement height, gravel in tan plates. Concrete and light block paving return as brightly as grass, so they aren't
 found; yards measured by hand (`grounds` in `data/survey.json`) are drawn over these.
 
+### Hedges
+
+Hedges and garden shrubs are the LIDAR's low growth: whatever stands 1 to 4.5 m above the ground and isn't under a
+tree crown, a building or a road. Each stands as tall as the laser measured it, at the same scale as the walls and
+houses, with its top evened over its neighbours (so a clipped hedge stays flat and a shrub keeps its dome). Specks of
+one or two studs (a bin, a garden ornament) are left out, and low growth beside canopy over 4.5 m stays knee high,
+since that is mostly the drooping edge of a crown rather than a hedge on the ground. The survey was flown with the
+leaves off, so where the last return stops near the top of the growth the hedge is evergreen (privet, laurel, box,
+conifer, clipped yew; `tools/tree_kinds.py`): those stay dark green all year, while the rest are bare from December
+to March and turn in the autumn. Hedges OpenStreetMap maps out in the fields take the LIDAR's height where it has one.
+Fences are too thin for the 1 m LIDAR to trace, so the only fences are those recorded from Street View.
+
 ### Fitted buildings
 
 `tools/fit_buildings.py` measures every building the way a surveyor would: its footprint from the LIDAR (raised,
@@ -164,7 +176,8 @@ its `at` point, and every entry says where it was seen.
 house: their outlines, eaves and tops); its doors, windows and pinnacles are the ones the Historic England listing
 describes, spaced evenly along each wall.
 
-`walls` are garden and boundary walls (height, brick or stone, coping, piers). A wall along a road gives the road's
+`walls` are garden and boundary walls (height, brick or stone, coping, piers, and `fence`: timber panels on top, to
+that height above the ground). A wall along a road gives the road's
 OpenStreetMap way id (`osm`), the `side` of it and `from`/`to` points, and stands at the back of the modelled pavement;
 any other wall is a list of points. The 1 m LIDAR does not show walls this low, so they come from Street View.
 `gates` are gateways through those walls (`at`, the compass `face` out through them, the opening's `width`): stone
@@ -219,7 +232,7 @@ closed plain timber gate; where OSM gives a `maxheight` there is a lattice heigh
 8. `python3 tools/tree_kinds.py data/kneesall.json --dtm dtm.tif --dsm dsm.tif --dsm-last dsm_last.tif --bbox 469880 363760 470880 364760`
    (marks each tree evergreen or deciduous: the survey was flown with the leaves off, so the last return goes down
    through a deciduous crown but stops near the top of a yew, holly or conifer. Evergreens are drawn dark and dense,
-   the narrow ones as conifers)
+   the narrow ones as conifers. Adds `evergreen`, the studs of evergreen hedges and shrubs)
 
 8b. `python3 tools/hard_ground.py data/kneesall.json --dtm dtm.tif --dsm dsm.tif --dsm-last dsm_last.tif --intensity intensity_SK7060.tif --bbox 469880 363760 470880 364760`
    (drives, yards and car parks; see "Drives and yards" above)

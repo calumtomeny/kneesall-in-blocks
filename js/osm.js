@@ -346,7 +346,7 @@ export function buildKneesall(data) {
   }
 
   // ------------------------------------------------------------ LIDAR trees and hedgerows
-  const hedgeMask = new Uint8Array(G.n * G.n);
+  const hedgeMask = new Uint8Array(G.n * G.n), hedgeTop = new Uint8Array(G.n * G.n);   // hedge cells; layers drawn
   if (lidar) {
     const nearTree = new Uint8Array(G.n * G.n);
     // LIDAR "trees" the aerial photograph shows to be roofs, chimneys or building edges (survey.json "notTrees")
@@ -372,10 +372,43 @@ export function buildKneesall(data) {
       const i = G.i(x, z), h = ndsm(x, z);
       if (h < 1.0 || nearTree[i] || clearGround[i] || (G.occ[i] & (1 | 64 | 8))) continue;
       if ((G.occ[i] & 2) && Math.hypot(x, z + 40) < VILLAGE_R + 40) continue;   // keep pavements clear
-      if (h > 4.5) { hedgeMask[i] = 2; continue; }   // tall vegetation without a detected trunk: leave as a barrier only
-      hedgeMask[i] = 1;
-      W.set(x, 0, z, (x * 3 + z * 5) % 23 === 0 ? hedgeAlt : hedgeC, F_PLAIN);
-      if (h > 1.7) W.set(x, 1, z, (x + z) % 17 === 0 ? hedgeAlt : hedgeC, F_PLAIN);
+      hedgeMask[i] = h > 4.5 ? 2 : 1;   // tall vegetation without a detected trunk: leave as a barrier only
+    }
+    // evergreen hedges and shrubs (data.evergreen, from tools/tree_kinds.py) keep their leaves through the winter
+    const evergreen = new Uint8Array(G.n * G.n);
+    for (const [z, x0, x1] of data.evergreen ?? []) for (let x = x0; x <= x1; x++) { const i = G.i(x, z); if (i >= 0) evergreen[i] = 1; }
+    // Each hedge stands as tall as the LIDAR measured it, at the walls' scale (KWALL layers a metre), its top evened
+    // over the cells round it (the median, so a clipped hedge stays flat and a shrub keeps its dome). Specks of one
+    // or two cells (a bin, a garden ornament, a fence post) go. Where canopy over 4.5 m stands within two cells, the
+    // low growth is mostly the drooping edge of that crown (wider than the one drawn, or a tree the finder missed),
+    // not a hedge standing on the ground: it keeps to knee height there, as before.
+    const N = G.n, seen = new Uint8Array(N * N), stack = [], cells = [];
+    for (let s = 0; s < N * N; s++) {
+      if (hedgeMask[s] !== 1 || seen[s]) continue;
+      cells.length = 0; stack.push(s); seen[s] = 1;
+      while (stack.length) {
+        const c = stack.pop(); cells.push(c);
+        const cx = c % N, cz = (c - cx) / N;
+        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = cx + dx, nz = cz + dz, k = nz * N + nx;
+          if (nx >= 0 && nz >= 0 && nx < N && nz < N && hedgeMask[k] === 1 && !seen[k]) { seen[k] = 1; stack.push(k); }
+        }
+      }
+      if (cells.length < 3) { for (const c of cells) hedgeMask[c] = 0; continue; }
+      for (const c of cells) {
+        const x = c % N - half, z = (c - c % N) / N - half, around = [];
+        let fringe = false;
+        for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) {
+          const k = G.i(x + dx, z + dz); if (k < 0) continue;
+          if (ndsm(x + dx, z + dz) > 4.5) fringe = true;
+          if (hedgeMask[k] === 1 && Math.abs(dx) <= 1 && Math.abs(dz) <= 1) around.push(ndsm(x + dx, z + dz));
+        }
+        around.sort((a, b) => a - b);
+        const top = fringe ? (ndsm(x, z) > 1.7 ? 2 : 1) : Math.max(1, Math.round(around[around.length >> 1] * KWALL));
+        const [main, alt] = evergreen[c] ? [PAL.darkGreen, PAL.green] : [hedgeC, hedgeAlt];
+        for (let y = 0; y < top; y++) W.set(x, y, z, ((x * 3 + z * 5 + y * 7) % 23 === 0) ? alt : main, F_PLAIN);
+        hedgeTop[c] = top;
+      }
     }
   }
 
@@ -675,12 +708,22 @@ export function buildKneesall(data) {
 
   // ------------------------------------------------------------ hedges, fences, roadside hedges in the countryside
   for (const l of data.lines) {
-    if (l.kind === 'hedge') lineCells(l.pts, 0.75, (x, z) => { if (!G.has(x, z, 1 | 64 | 8) && inBounds(x, z, 1)) { W.set(x, 0, z, hedgeC, F_PLAIN); W.set(x, 1, z, R() < 0.1 ? hedgeAlt : hedgeC, F_PLAIN); if (!lidar && R() < 0.02) tree(W, x, z, { r: 3.5 + R() * 2 }); } });
+    // (as tall as the LIDAR's low growth there, or knee high where it saw none or a tree)
+    if (l.kind === 'hedge') lineCells(l.pts, 0.75, (x, z) => {
+      if (G.has(x, z, 1 | 64 | 8) || !inBounds(x, z, 1)) return;
+      const h = ndsm(x, z), top = h >= 1 && h <= 4.5 ? Math.max(2, Math.round(h * KWALL)) : 2;
+      const alt = R() < 0.1;
+      for (let y = 0; y < top; y++) W.set(x, y, z, y === 1 && alt ? hedgeAlt : hedgeC, F_PLAIN);
+      hedgeTop[G.i(x, z)] = Math.max(hedgeTop[G.i(x, z)], top);
+      if (!lidar && R() < 0.02) tree(W, x, z, { r: 3.5 + R() * 2 });
+    });
     if (l.kind === 'fence') lineCells(l.pts, 0.6, (x, z) => { if (!G.has(x, z, 1 | 2)) { W.set(x, 0, z, PAL.reddishBrown); W.set(x, 1, z, PAL.reddishBrown, F_TILE); } });
   }
   // garden and boundary walls seen in Street View and aerial photographs (survey.json "walls"): brick, stone or
   // (a colour name such as brown) timber fencing to their height, a coping tile on top, and piers a brick taller
-  // every `piers` metres
+  // every `piers` metres; `fence`: timber panels on top of the wall, to that many metres above the ground. A hedge
+  // the LIDAR measured on the wall's line keeps whatever of it stands more than a brick above the coping (hedges on
+  // top of walls are common here); a single brick of it on the coping is the wall itself, seen by the LIDAR, rounded up.
   // A wall along a mapped road (`osm` way id, `side` left/right of its direction, `from`/`to` points) follows the
   // road between those points at the back of its pavement (or verge edge), or `offset` metres from its centre line.
   const alongRoad = (w) => {
@@ -699,11 +742,14 @@ export function buildKneesall(data) {
     const c = MATERIALS[w.wall] ?? PAL[w.wall] ?? MATERIALS.redBrick, cap = MATERIALS[w.cap] ?? PAL[w.cap] ?? PAL.lbg;
     const piers = new Set();
     if (w.piers) for (let s = 0, L = polylineLength(pts); s <= L; s += w.piers / mps) { const p = pointAlong(pts, Math.min(s, L - 0.01)); piers.add(Math.floor(p.x) + ',' + Math.floor(p.z)); }
+    const fence = w.fence ? Math.round(w.fence * KWALL) : 0, fenceC = PAL[w.fenceColour] ?? PAL.brown;
     lineCells(pts, 0.5, (x, z) => {
       if (G.has(x, z, 1 | 2 | 64) || !inBounds(x, z, 1)) return;
-      const pier = piers.has(x + ',' + z);
-      for (let y = 0; y < n + (pier ? 1 : 0); y++) W.set(x, y, z, c);
-      W.set(x, n + (pier ? 1 : 0), z, cap, F_TILE);
+      const pier = piers.has(x + ',' + z), capY = n + (pier ? 1 : 0), ht = hedgeTop[G.i(x, z)];
+      for (let y = 0; y < capY; y++) W.set(x, y, z, c);
+      W.set(x, capY, z, cap, F_TILE);
+      if (ht && ht <= capY + 2) for (let y = capY + 1; y < ht; y++) W.del(x, y, z);
+      for (let y = capY + 1; y < fence; y++) W.set(x, y, z, fenceC, y === fence - 1 ? F_TILE : 0);
     });
   }
   // gateways seen in Street View (survey.json "gates"): an opening `width` metres wide through the wall at `at`, a stone
