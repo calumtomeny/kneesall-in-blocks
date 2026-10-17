@@ -236,6 +236,7 @@ export function buildKneesall(data) {
     // hand-surveyed buildings replace any OS outline they mostly cover
     const surveyed = survey ? surveyedBuildings(survey, data.bng) : [];
     const details = (survey?.details ?? []).map(d => ({ ...d, xz: project(d.at) }));
+    const notBuildings = (survey?.notBuildings ?? []).map(n => project(n.at));
     for (const P of surveyed) addBuilding(P);
     const replaced = (pts) => {
       let n = 0, hit = 0;
@@ -301,6 +302,14 @@ export function buildKneesall(data) {
       // a 2 m sliver of a building 3.5 m or more across) stood as a thin wall with a door: aerial photographs show the
       // OS outline is right, so the rectangle takes the outline's extent and keeps its measured roof
       let fit = b.fit;
+      // parts measured again by hand from the LIDAR where the fitter got a roof wrong (details "fitParts", in the
+      // fit's frame), and fitted parts that stand on growth, not a building (survey.json "notBuildings")
+      if (fit && seen?.fitParts) fit = { ...fit, parts: seen.fitParts };
+      if (fit && data.bng && notBuildings.length) {
+        const inPart = (p, [u, w]) => u >= p.u[0] && u <= p.u[1] && w >= p.w[0] && w <= p.w[1];
+        const parts = fit.parts.filter(p => !notBuildings.some(q => inPart(p, toFit(q))));
+        if (parts.length < fit.parts.length) fit = parts.length ? { ...fit, parts } : null;
+      }
       if (fit && data.bng && !b.lidarOnly && fit.parts.length === 1 && b.areaM2 < 80) {
         const p = fit.parts[0], uw = b.pts.map(toFit);
         const U = [Math.min(...uw.map(q => q[0])), Math.max(...uw.map(q => q[0]))], Wd = [Math.min(...uw.map(q => q[1])), Math.max(...uw.map(q => q[1]))];

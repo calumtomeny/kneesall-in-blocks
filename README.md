@@ -173,8 +173,8 @@ last-return heights (or `--layer intensity`) in a rotated grid to read the parts
 `details` record what was seen of a building without re-measuring it: wall and roof materials, a painted ground
 storey, which side faces the road (and which other sides are `blank`), door and chimney positions as fractions along the front (left to right as seen
 from the road), windows per floor (a count spaced evenly, a list of fractions, or null where hidden), storeys, a label, a door `porch` canopy (`gable` or `lean`), small front `gablets` (fractions
-along the front), `garages` doors ([fraction, colour, 2 for a double]), `frontAt` (a point on the front wall, lat/lon, where another range has a longer wall facing the same way) and `solar` panels (`face`: compass direction of the roof slope, `span`: fractions along it). Each is matched to the building whose outline contains
-its `at` point, and every entry says where it was seen.
+along the front), `garages` doors ([fraction, colour, 2 for a double]), `frontAt` (a point on the front wall, lat/lon, where another range has a longer wall facing the same way) and `solar` panels (`face`: compass direction of the roof slope, `span`: fractions along it). `fitParts` replaces the fitter's parts (same form, in its frame) where it got a roof
+wrong. Each is matched to the building whose outline contains its `at` point, and every entry says where it was seen.
 
 `church` gives St Bartholomew's parts as the LIDAR measures them (tower, nave, aisles, chancel, porch and boiler
 house: their outlines, eaves and tops); its doors, windows and pinnacles are the ones the Historic England listing
@@ -205,7 +205,8 @@ surface as drawn, which on cambered ground stands well above the ground beneath 
 or weathered, how many leaves, and the compass direction they stand open towards. Gates nobody has looked at are a
 closed plain timber gate; where OSM gives a `maxheight` there is a lattice height bar over the way.
 `trees` are trees the LIDAR doesn't have (planted or grown since, or on ground cleared when it was flown), and
-`notTrees` are LIDAR "trees" the aerial photograph shows to be roofs, chimneys or building edges.
+`notTrees` are LIDAR "trees" the aerial photograph shows to be roofs, chimneys or building edges, and `notBuildings`
+the reverse: points where the fitter grew a building into trees or hedge (any fitted part over the point is dropped).
 
 ## Regenerating `data/`
 
