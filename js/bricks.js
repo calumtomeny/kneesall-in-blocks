@@ -1,4 +1,4 @@
-// Brick engine: voxel world -> merged LEGO-style brick geometry.
+// Brick engine: voxel world -> merged brick geometry.
 // Units: 1 stud pitch = 1 unit. Brick height = 1.2, plate = 0.4.
 import * as THREE from 'three';
 
@@ -7,7 +7,7 @@ export const PLATE = 0.4;
 const GAP = 0.012;     // half-gap between neighbouring bricks
 const CHAMFER = 0.035; // edge bevel
 
-// Approximate official LEGO colours
+// Brick colours
 export const PAL = {
   green: 0x4b9f4a, darkGreen: 0x184632, sandGreen: 0xa0bcac, lime: 0xa5ca18, olive: 0x9b9a5a,
   tan: 0xe4cd9e, darkTan: 0x958a73, brown: 0x583927, reddishBrown: 0x582a12, nougat: 0xaa7d55,
@@ -450,7 +450,7 @@ export function studGeometry(segments = 14, bevel = true) {
   return g;
 }
 
-// Canvas texture showing a stud from above; used on the flat baseplate so distant ground still reads as LEGO
+// Canvas texture showing a stud from above; used on the flat baseplate so distant ground still reads as bricks
 export function studTexture(renderer) {
   const S = 128, cv = document.createElement('canvas'); cv.width = cv.height = S;
   const x = cv.getContext('2d');

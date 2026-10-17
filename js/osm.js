@@ -1,4 +1,4 @@
-// Builds LEGO Kneesall from open data (data/kneesall.json + terrain.bin + ndsm.bin).
+// Builds Kneesall in Blocks from open data (data/kneesall.json + terrain.bin + ndsm.bin).
 // Real, from OpenStreetMap: roads and names, church/restaurant/school/café identities, churchyard, playground,
 //   car parks, hedges, woods, streams/ditches, power poles, bus stops, post box, benches.
 // Real, from Ordnance Survey OpenMap Local: every building outline.

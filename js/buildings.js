@@ -1,4 +1,4 @@
-// Turns building footprints (OSM polygons or generated rectangles) into LEGO buildings.
+// Turns building footprints (OSM polygons or generated rectangles) into brick buildings.
 // Each building is built axis-aligned in its own local voxel World and then rotated into place,
 // so walls stay straight even when the real building sits at an angle.
 import { World, PAL, F_TILE, F_NOCOLLIDE } from './bricks.js';
@@ -8,7 +8,7 @@ import { roofPlan } from './roofs.js';
 
 const N4 = [[0, -1], [0, 1], [-1, 0], [1, 0]];
 
-// Building materials as LEGO colours
+// Building materials as brick colours
 export const MATERIALS = {
   slate: PAL.dbg, pantile: PAL.darkOrange, brownTile: PAL.reddishBrown, concreteTile: PAL.darkTan, sheetLight: PAL.lbg, sheetDark: PAL.dbg, felt: PAL.dbg,
   redBrick: PAL.darkNougat, darkBrick: PAL.darkRed, brownBrick: PAL.reddishBrown, buffBrick: PAL.tan,

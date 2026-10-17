@@ -1,4 +1,4 @@
-// 2D geometry helpers for turning OpenStreetMap shapes into LEGO.
+// 2D geometry helpers for turning OpenStreetMap shapes into bricks.
 // All coordinates are in studs, x = east, z = south.
 
 export function polyArea(pts) {

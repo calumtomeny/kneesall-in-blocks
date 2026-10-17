@@ -1,6 +1,6 @@
-# LEGO Kneesall
+# Kneesall in Blocks
 
-A walkable WebGL model of Kneesall, Nottinghamshire, built out of LEGO-style bricks.
+A walkable WebGL model of Kneesall, Nottinghamshire, built out of toy-style bricks.
 
 ```bash
 python3 tools/serve.py        # then open http://localhost:8765
@@ -208,7 +208,7 @@ closed plain timber gate; where OSM gives a `maxheight` there is a lattice heigh
 ## Regenerating `data/`
 
 1. OpenStreetMap: download `data/osm-raw.json` with an Overpass query over
-   `(53.163,-0.966,53.177,-0.930)`, then `python3 tools/osm_to_lego.py data/osm-raw.json data/kneesall.json`. (`--refresh` refreshes just the
+   `(53.163,-0.966,53.177,-0.930)`, then `python3 tools/osm_to_blocks.py data/osm-raw.json data/kneesall.json`. (`--refresh` refreshes just the
    points of interest, gates and rights of way in an existing `data/kneesall.json`, leaving the layers later steps add)
 2. OS OpenMap Local: download the `SK` shapefile zip from the OS Data Hub (`OpenMapLocal`, area `SK`)
    and unzip `SK_Building.*` and `SK_ImportantBuilding.*`.
@@ -253,10 +253,10 @@ Steps 4–8b add to the JSON written by step 1, so run them in that order.
 - `js/geo.js` – geometry: polygons and lines to stud cells, distances along roads, road surfaces and paint
 - `js/seasons.js`, `js/sound.js` – the crop and leaf calendars; the synthesised sounds
 - `js/roofs.js` – turns the LIDAR heights over a footprint into a roof height per stud
-- `js/buildings.js` – fits LEGO buildings onto real footprints (walls and roofs from `roofs.js`, or a gable/hipped/flat roof without LIDAR), and roof materials
+- `js/buildings.js` – fits brick buildings onto real footprints (walls and roofs from `roofs.js`, or a gable/hipped/flat roof without LIDAR), and roof materials
 - `js/survey.js` – builds buildings from measured parts (fitted or hand-surveyed), yards and drives from `data/survey.json`
 - `tools/fit_buildings.py`, `tools/survey_grid.py`, `tools/streetview_bearings.py` – fit every building's parts from the LIDAR; print LIDAR grids for surveying; which buildings a Street View panorama sees
 - `js/bricks.js` – voxel world → merged, bevelled brick geometry, and a plain version of each chunk (only the faces that show, merged into rectangles) drawn from a distance
-- `js/parts.js`, `js/landmarks.js`, `js/actors.js` – houses, street furniture, church, the player's minifig, the cars, vans, lorries, buses and motorbikes
-- `tools/osm_to_lego.py`, `tools/os_lidar.py`, `tools/lidar_roofs.py`, `tools/crome.py`, `tools/tree_kinds.py`, `tools/hard_ground.py`, `tools/traffic.py` – build `data/` (see "Regenerating `data/`")
+- `js/parts.js`, `js/landmarks.js`, `js/actors.js` – houses, street furniture, church, the player's figure, the cars, vans, lorries, buses and motorbikes
+- `tools/osm_to_blocks.py`, `tools/os_lidar.py`, `tools/lidar_roofs.py`, `tools/crome.py`, `tools/tree_kinds.py`, `tools/hard_ground.py`, `tools/traffic.py` – build `data/` (see "Regenerating `data/`")
 - `tools/` also has the OSGB grid conversion, shapefile and GeoTIFF readers, and the dev server

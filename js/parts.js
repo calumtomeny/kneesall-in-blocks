@@ -1,4 +1,4 @@
-// Reusable LEGO builds: houses, windows, doors, trees, hedges, walls, signs...
+// Reusable brick builds: houses, windows, doors, trees, hedges, walls, signs...
 import * as THREE from 'three';
 import { PAL, BRICK, PLATE, F_TILE, F_HIDDEN, F_NOCOLLIDE, F_PLAIN, col, rng } from './bricks.js';
 
@@ -154,7 +154,7 @@ export function chimney(W, x, z, y0, y1, c) {
   });
 }
 
-// 45° LEGO slope roof with 1-stud eaves overhang
+// 45° slope-brick roof with 1-stud eaves overhang
 export function gableRoof(W, x0, z0, x1, z1, H, roof, gable, ridge = 'x') {
   if (ridge === 'x') {
     const D = z1 - z0 + 3, K = Math.floor(D / 2);

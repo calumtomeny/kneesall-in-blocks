@@ -7,7 +7,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { buildWorld, studGeometry, studTexture, Builder, World, BRICK, PLATE, PAL, col, rng, F_NOCOLLIDE } from './bricks.js';
 import { buildKneesall, groundMeshes } from './osm.js';
 import { polyCells, centroid, pointAlong, polylineLength, distToPolyline, pointInPoly } from './geo.js';
-import { makeMinifig, animateMinifig, makeCar, makeMixer, makeLorry, makeBus, makeMotorbike } from './actors.js';
+import { makeFigure, animateFigure, makeCar, makeMixer, makeLorry, makeBus, makeMotorbike } from './actors.js';
 import { MONTHS } from './seasons.js';
 import { KWALL } from './roofs.js';
 import { Soundscape } from './sound.js';
@@ -178,7 +178,7 @@ function applyTime(quiet = false) {
 // ------------------------------------------------------------------ materials
 const brickMat = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.34, metalness: 0, clearcoat: 0.3, clearcoatRoughness: 0.22, specularIntensity: 0.6 });
 const studMat = new THREE.MeshPhysicalMaterial({ roughness: 0.32, clearcoat: 0.35, clearcoatRoughness: 0.2, specularIntensity: 0.6 });
-// Ground uses a stud texture mapped in world space (1 repeat per stud) so distant baseplates still read as LEGO;
+// Ground uses a stud texture mapped in world space (1 repeat per stud) so distant baseplates still read as bricks;
 // real stud geometry is streamed in near the player.
 const groundMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, map: studTexture(renderer) });
 groundMat.onBeforeCompile = (sh) => {
@@ -1014,7 +1014,7 @@ function viewLink() {
 function shareLink() {
   const url = viewLink();
   history.replaceState(null, '', url);
-  const title = 'LEGO Kneesall: ' + lastPlace;
+  const title = 'Kneesall in Blocks: ' + lastPlace;
   if (TOUCH && navigator.share) { navigator.share({ title, url }).catch(() => {}); return; }
   const done = () => showToast('Link to this view copied');
   // where the clipboard API is refused, the old way: copy from a selected text box
@@ -1210,7 +1210,7 @@ function updateCamera(dt) {
   camera.rotation.set(player.pitch, player.yaw, 0, 'YXZ');
   avatar.visible = player.third;
   avatar.position.copy(p); avatar.rotation.y = player.yaw + Math.PI;
-  animateMinifig(avatar, player.fly ? 0 : moveSpeed, dt);
+  animateFigure(avatar, player.fly ? 0 : moveSpeed, dt);
   if (!player.third) { camera.position.set(p.x, p.y + EYE, p.z); return; }
   // third person: pull the camera back, shortening it if bricks are in the way
   const back = new THREE.Vector3(0, 0, 1).applyEuler(camera.rotation);
@@ -1258,7 +1258,7 @@ function updateWorld(dt, t) {
 }
 
 // The shadow camera follows the player in steps of about two studs (a whole number of shadow texels, so edges don't
-// shimmer), and the shadow map is redrawn only when it moves, the minifig is on show, the sun changes or the clouds
+// shimmer), and the shadow map is redrawn only when it moves, the figure is on show, the sun changes or the clouds
 // have drifted a little
 let shadowsDirty = true, shadowAt = '', shadowT = 0, figPose = '';
 function updateShadows(t) {
@@ -1451,7 +1451,7 @@ function loop(now) {
 (async () => {
   try {
     await build();
-    avatar = makeMinifig({ torso: PAL.red, legs: PAL.darkBlue, print: 'shirt', hair: PAL.brown });
+    avatar = makeFigure({ torso: PAL.red, legs: PAL.darkBlue, print: 'shirt', hair: PAL.brown });
     scene.add(avatar);
     applyTime();
     fetchWeather();

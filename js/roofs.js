@@ -1,6 +1,6 @@
 // Roof heights from the LIDAR surface model, one value per stud of a building's footprint.
 // The measured height (metres above ground) becomes a brick count; where neighbouring studs differ by a
-// little it is a roof slope (at most one brick per stud, the steepest LEGO slope), and where they differ a
+// little it is a roof slope (at most one brick per stud, the steepest slope brick), and where they differ a
 // lot it is a wall — so extensions, lean-tos, gable ends and hips all come out of the data.
 
 const N4 = [[0, -1], [0, 1], [-1, 0], [1, 0]];
@@ -10,7 +10,7 @@ export const KWALL = 2 * FH / EAVES2;   // brick layers per metre of wall
 const STEP = 1.3;          // metres: a jump bigger than this between neighbouring studs is a wall, not roof
 const KROOF = 1.7;         // bricks per metre above the eaves: a typical 40° pitch becomes one brick per stud
 
-// metres above ground -> brick layers: walls are stretched so a two-storey eaves gets two minifig storeys,
+// metres above ground -> brick layers: walls are stretched so a two-storey eaves gets two figure-scale storeys,
 // above that the roof keeps its pitch
 export const layersFor = (v) => Math.max(FH, Math.round(v <= EAVES2 ? v * KWALL : 2 * FH + (v - EAVES2) * KROOF));
 

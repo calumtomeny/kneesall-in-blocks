@@ -1,4 +1,4 @@
-// The player's minifigure and the traffic on Newark Road
+// The player's figure and the traffic on Newark Road
 import * as THREE from 'three';
 import { PAL, Builder, col } from './bricks.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -48,8 +48,8 @@ function torsoGeo() {
   return (geoCache.torso = g);
 }
 
-// Minifig, facing +z. Origin at the feet.
-export function makeMinifig(o = {}) {
+// Figure, facing +z. Origin at the feet.
+export function makeFigure(o = {}) {
   const root = new THREE.Group();
   const skin = plastic(PAL.yellow);
   const legM = plastic(o.legs ?? PAL.darkBlue), hipM = plastic(o.hips ?? o.legs ?? PAL.darkBlue), shirt = o.torso ?? PAL.red;
@@ -99,7 +99,7 @@ export function makeMinifig(o = {}) {
   return root;
 }
 
-export function animateMinifig(fig, speed, dt) {
+export function animateFigure(fig, speed, dt) {
   const u = fig.userData;
   if (speed > 0.1) u.phase += dt * speed * 1.6; else u.phase *= 0.9;
   const a = speed > 0.1 ? Math.sin(u.phase) * Math.min(0.7, speed * 0.12) : 0;
@@ -144,7 +144,7 @@ function assemble(b, gl, wheels, L, Wd, r) {
   return g;
 }
 
-// A LEGO car, `kind` 'hatch' or 'van'; the front (headlights) is at +x
+// A brick car, `kind` 'hatch' or 'van'; the front (headlights) is at +x
 export function makeCar(bodyHex, kind = 'hatch') {
   const b = new Builder(), gl = new Builder();
   const L = 10, Wd = 5, c = col(bodyHex), k = col(PAL.black), grey = col(PAL.lbg);
@@ -329,7 +329,7 @@ export function makeMotorbike(hex) {
   bx(0.05, 1.6, 0.55, 0.2, 1.9, 1.05, col(PAL.red), { chamfer: 0.02 });
   const g = assemble(b, gl, [[0.9, 0], [L - 0.9, 0]], L, Wd, 0.9);
   for (const w of g.userData.wheels) w.scale.set(0.9, 0.9, 0.35);
-  const rider = makeMinifig({ torso: PAL.black, legs: PAL.black, arms: PAL.black, helmet: hex, print: 'plain' });
+  const rider = makeFigure({ torso: PAL.black, legs: PAL.black, arms: PAL.black, helmet: hex, print: 'plain' });
   rider.rotation.y = Math.PI / 2; rider.position.set(-0.7, 0.75, 0);
   for (const l of rider.userData.legs) l.rotation.x = -1.35;
   for (const a of rider.userData.arms) a.rotation.x = -1.1;

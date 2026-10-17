@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Convert a raw Overpass JSON dump of Kneesall into a compact file for the LEGO tour.
+"""Convert a raw Overpass JSON dump of Kneesall into a compact file for the Kneesall in Blocks tour.
 
-Coordinates are projected to LEGO studs: x = east, z = south, origin at ORIGIN,
+Coordinates are projected to studs: x = east, z = south, origin at ORIGIN,
 1 stud = METRES_PER_STUD metres.
 
-Usage: python3 tools/osm_to_lego.py data/osm-raw.json data/kneesall.json
+Usage: python3 tools/osm_to_blocks.py data/osm-raw.json data/kneesall.json
 Data © OpenStreetMap contributors, ODbL.
 """
 import json

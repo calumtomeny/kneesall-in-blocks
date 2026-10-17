@@ -1,7 +1,7 @@
 """WGS84 <-> Ordnance Survey National Grid (OSGB36 / EPSG:27700) conversion.
 
 Uses the standard OS formulas (Transverse Mercator on the Airy 1830 ellipsoid) with a
-7-parameter Helmert datum shift, accurate to a few metres, which is well under one LEGO stud.
+7-parameter Helmert datum shift, accurate to a few metres, which is well under one stud.
 """
 import math
 

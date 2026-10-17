@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LEGO Kneesall</title>
+<title>Kneesall in Blocks</title>
 <style>
   :root { --red: #c91a09; --ink: #1b2a34; --card: rgba(255,255,255,0.94); }
   html, body { margin: 0; height: 100%; overflow: hidden; background: #9fc3e6; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); }
@@ -12,7 +12,7 @@
   #intro { position: fixed; inset: 0; display: grid; place-items: center; background: radial-gradient(ellipse at center, rgba(20,40,60,0.35), rgba(10,20,30,0.75)); z-index: 10; padding: 16px; }
   .card { background: var(--card); border-radius: 14px; padding: 28px 32px; max-width: 520px; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
   .card h1 { margin: 0 0 4px; font-size: 32px; letter-spacing: -0.5px; }
-  .card h1 span { background: var(--red); color: #fff; padding: 0 10px; border-radius: 6px; margin-right: 6px; }
+  .card h1 span { background: var(--red); color: #fff; padding: 0 10px; border-radius: 6px; margin-left: 2px; }
   .card p { margin: 8px 0; line-height: 1.45; }
   .keys { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 14px; margin: 14px 0 18px; }
   kbd { background: #eee; border: 1px solid #ccc; border-bottom-width: 3px; border-radius: 5px; padding: 1px 6px; font-size: 12px; font-family: inherit; }
@@ -50,13 +50,13 @@
 <body>
 <div id="intro">
   <div class="card">
-    <h1><span>LEGO</span>Kneesall</h1>
+    <h1>Kneesall <span>in Blocks</span></h1>
     <p>A brick-built model of Kneesall, Nottinghamshire, laid out from open data: the real roads, buildings measured from the Environment Agency's laser survey, churchyard, hedges and streams, with St Bartholomew's Church, the Tudor Old Hall, the Rajdhaani (the old Angel Inn) and the school, surrounded by grass paddocks and the crops the Crop Map of England recorded in 2024: oats, wheat, barley, beans and maize, as they look this month<span class="desktop-only"> (<kbd>Y</kbd> for the next)</span>.</p>
     <div class="keys desktop-only">
       <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span>Walk (mouse to look)</span>
       <span><kbd>Shift</kbd></span><span>Run</span>
       <span><kbd>Space</kbd></span><span>Jump (you can climb onto low walls)</span>
-      <span><kbd>V</kbd></span><span>First / third person (see your minifig)</span>
+      <span><kbd>V</kbd></span><span>First / third person (see your figure)</span>
       <span><kbd>F</kbd></span><span>Fly mode — <kbd>Space</kbd> up, <kbd>C</kbd> down</span>
       <span><kbd>T</kbd></span><span>Change time of day, night too (or the sun and moon where they are now)</span>
       <span><kbd>Y</kbd></span><span>Next month: crops, leaves and hedges through the year</span>
@@ -65,7 +65,7 @@
       <span><kbd>L</kbd></span><span>Copy a link to this view (where you stand, which way you look)</span>
       <span><kbd>M</kbd> <kbd>O</kbd> <kbd>H</kbd></span><span>Map, ambient occlusion, help</span>
     </div>
-    <p class="touch-only">Drag on the left half of the screen to walk and on the right half to look about. The buttons along the bottom change the time of day, the month, the weather and the sound, show the map, switch to seeing your minifig and fly (<b>Up</b> and <b>Down</b> climb, or jump in walking); <b>Share</b> sends a link to the view.</p>
+    <p class="touch-only">Drag on the left half of the screen to walk and on the right half to look about. The buttons along the bottom change the time of day, the month, the weather and the sound, show the map, switch to seeing your figure and fly (<b>Up</b> and <b>Down</b> climb, or jump in walking); <b>Share</b> sends a link to the view.</p>
     <button id="start" disabled>Loading…</button><span id="loading-text">Starting…</span>
   </div>
 </div>
