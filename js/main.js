@@ -6,7 +6,7 @@ import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { buildWorld, studGeometry, studTexture, Builder, World, BRICK, PLATE, PAL, col, rng, F_NOCOLLIDE } from './bricks.js';
 import { buildKneesall, groundMeshes } from './osm.js';
-import { polyCells, centroid, pointAlong, polylineLength, distToPolyline, pointInPoly } from './geo.js';
+import { polyCells, buildingCells, centroid, pointAlong, polylineLength, distToPolyline, pointInPoly } from './geo.js';
 import { makeFigure, animateFigure, makeCar, makeMixer, makeLorry, makeBus, makeMotorbike } from './actors.js';
 import { MONTHS } from './seasons.js';
 import { KWALL } from './roofs.js';
@@ -321,7 +321,7 @@ async function build() {
     addWorldMeshes(P.world, g, P);
     scene.add(g);
     const [cx, cz] = centroid(P.poly);
-    P.cx = cx; P.cz = cz; P.r = Math.max(...P.poly.map(([x, z]) => Math.hypot(x - cx, z - cz))) + 6;
+    P.cx = cx; P.cz = cz; P.r = Math.max(...(P.polys ?? [P.poly]).flat().map(([x, z]) => Math.hypot(x - cx, z - cz))) + 6;
   }
   console.log('buildings', (performance.now() - t0) | 0, 'ms');
 
@@ -1360,7 +1360,7 @@ function buildMinimap() {
     const [vx, vy, vz] = World.decode(k); const i = G.i(vx, vz);
     if (i >= 0 && vy > topY[i]) { topY[i] = vy; colr[i] = v & 0xffffff; }
   }
-  for (const P of K.buildings) polyCells(P.poly, (bx, bz) => { const i = G.i(bx, bz); if (i >= 0) { colr[i] = P.roofCol ?? PAL.dbg; topY[i] = 20; } });
+  for (const P of K.buildings) buildingCells(P, (bx, bz) => { const i = G.i(bx, bz); if (i >= 0) { colr[i] = P.roofCol ?? PAL.dbg; topY[i] = 20; } });
   const c = new THREE.Color();
   for (let i = 0; i < w * h; i++) {
     c.setHex(colr[i]);

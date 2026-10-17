@@ -16,7 +16,7 @@ import { buildingFromPolygon, buildingFromRect, churchFromPolygon, houseStyle, S
 import { surveyedBuildings, surveyedChurch, surveyGrounds, surveyRoads, fittedBuilding } from './survey.js';
 import { KWALL } from './roofs.js';
 import { cropLook, foliage, hedgeColours, EVERGREEN_HEDGE } from './seasons.js';
-import { polyCells, pointInPoly, lineCells, distToPolyline, polylineLength, pointAlong, chainPolylines, ribbonY, ribbonSurface, paintY, arcAt, centroid, polyArea } from './geo.js';
+import { polyCells, buildingCells, pointInPoly, lineCells, distToPolyline, polylineLength, pointAlong, chainPolylines, ribbonY, ribbonSurface, paintY, arcAt, centroid, polyArea } from './geo.js';
 
 const ROAD = {
   primary: { hw: 5, col: PAL.dbg, pave: true },
@@ -197,7 +197,7 @@ export function buildKneesall(data) {
   const addBuilding = (P) => {
     if (!P) return;
     buildings.push(P);
-    polyCells(P.poly, (x, z) => { G.flag(x, z, 1); for (let dz = -3; dz <= 3; dz++) for (let dx = -3; dx <= 3; dx++) G.flag(x + dx, z + dz, 32); });
+    buildingCells(P, (x, z) => { G.flag(x, z, 1); for (let dz = -3; dz <= 3; dz++) for (let dx = -3; dx <= 3; dx++) G.flag(x + dx, z + dz, 32); });
     if (P.label) { const [cx, cz] = centroid(P.poly); labels.push({ name: P.label, x: cx, z: cz, r: Math.sqrt(Math.abs(polyArea(P.poly))) / 2 + 2 }); }
   };
   const area = (a) => data.areas.filter(x => x.kind === a);
@@ -239,7 +239,7 @@ export function buildKneesall(data) {
     for (const P of surveyed) addBuilding(P);
     const replaced = (pts) => {
       let n = 0, hit = 0;
-      polyCells(pts, (x, z) => { n++; if (surveyed.some(P => pointInPoly(x + 0.5, z + 0.5, P.poly))) hit++; });
+      polyCells(pts, (x, z) => { n++; if (surveyed.some(P => (P.polys ?? [P.poly]).some(q => pointInPoly(x + 0.5, z + 0.5, q)))) hit++; });
       return n > 0 && hit / n > 0.3;
     };
     for (const b of data.osBuildings) {
@@ -321,9 +321,9 @@ export function buildKneesall(data) {
   // each building sits on the lowest ground under its footprint; the plot is levelled to that height
   for (const P of buildings) {
     let lo = Infinity;
-    polyCells(P.poly, (x, z) => { const i = G.i(x, z); if (i >= 0) lo = Math.min(lo, G.base[i]); });
+    buildingCells(P, (x, z) => { const i = G.i(x, z); if (i >= 0) lo = Math.min(lo, G.base[i]); });
     P.y = lo === Infinity ? G.baseAt(...centroid(P.poly).map(Math.floor)) : lo;
-    polyCells(P.poly, (x, z) => { const i = G.i(x, z); if (i >= 0) { G.base[i] = G.top[i] = P.y; } });
+    buildingCells(P, (x, z) => { const i = G.i(x, z); if (i >= 0) { G.base[i] = G.top[i] = P.y; } });
   }
 
   // ------------------------------------------------------------ village zone (gardens rather than fields)
@@ -1087,7 +1087,7 @@ export function buildKneesall(data) {
   }
 
   // ------------------------------------------------------------ building footprints: no studs underneath
-  for (const P of buildings) polyCells(P.poly, (x, z) => { const i = G.i(x, z); if (i >= 0) { G.stud[i] = 0; G.top[i] = G.base[i] = P.y; } });
+  for (const P of buildings) buildingCells(P, (x, z) => { const i = G.i(x, z); if (i >= 0) { G.stud[i] = 0; G.top[i] = G.base[i] = P.y; } });
 
   const newark = chainPolylines(roads.filter(r => r.type === 'primary').map(r => r.pts)).sort((a, b) => polylineLength(b) - polylineLength(a))[0];
   // the stretch of the A616 inside the baseplate, for the traffic

@@ -178,11 +178,29 @@ function partsBuilding(at, parts0, o) {
   const blankDirs = opts.blank?.map(toLocal);
   const frontAt = opts.frontAt && [opts.frontAt[0] * k - mx, -opts.frontAt[1] * k - mz];   // (u, w) -> local studs
   lidarBuilding(W, { cells, top, roofCol, wallCol }, { ...opts, chimney: opts.chimney ?? opts.wall, doorDir, blankDirs, chimneyAt, frontAt });
-  P.poly = outline(cells).map(([x, z]) => P.toWorld(x, z));
+  // one outline per separate piece (a detached range, say); the biggest stands for the building
+  P.polys = outlines(cells).map(r => r.map(([x, z]) => P.toWorld(x, z)));
+  P.poly = P.polys[0];
   // the commonest roof colour stands for the building on the map
   const tally = new Map(); for (const c of roofCol.values()) tally.set(c, (tally.get(c) ?? 0) + 1);
   P.roofCol = [...tally].sort((a, b) => b[1] - a[1])[0]?.[0] ?? opts.roof; P.label = opts.label;
   return P;
+}
+
+// Outer boundaries of each 4-connected piece of a set of "x,z" cells, biggest piece first
+function outlines(cells) {
+  const left = new Set(cells), pieces = [];
+  for (const c0 of cells) {
+    if (!left.has(c0)) continue;
+    const piece = new Set([c0]), todo = [c0];
+    left.delete(c0);
+    while (todo.length) {
+      const [x, z] = todo.pop().split(',').map(Number);
+      for (const n of [(x + 1) + ',' + z, (x - 1) + ',' + z, x + ',' + (z + 1), x + ',' + (z - 1)]) if (left.has(n)) { left.delete(n); piece.add(n); todo.push(n); }
+    }
+    pieces.push(piece);
+  }
+  return pieces.sort((a, b) => b.size - a.size).map(outline);
 }
 
 // Outer boundary of a set of "x,z" cells as a polygon of cell corners (local studs), collinear points removed

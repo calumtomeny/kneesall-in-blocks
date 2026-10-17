@@ -29,6 +29,11 @@ export function pointInPoly(x, z, pts) {
 }
 
 // Calls fn(x, z) for every cell whose centre lies inside the polygon (scanline fill)
+// Every cell under a placed building: all the separate pieces of its outline (P.polys), or its one outline
+export function buildingCells(P, fn) {
+  for (const poly of P.polys ?? [P.poly]) polyCells(poly, fn);
+}
+
 export function polyCells(pts, fn) {
   let z0 = Infinity, z1 = -Infinity;
   for (const p of pts) { z0 = Math.min(z0, p[1]); z1 = Math.max(z1, p[1]); }
