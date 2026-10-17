@@ -7,7 +7,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { buildWorld, studGeometry, studTexture, Builder, World, BRICK, PLATE, PAL, col, rng, F_NOCOLLIDE } from './bricks.js';
 import { buildKneesall, groundMeshes } from './osm.js';
 import { polyCells, centroid, pointAlong, polylineLength, distToPolyline, pointInPoly } from './geo.js';
-import { makeMinifig, animateMinifig, makeCar, makeMixer } from './actors.js';
+import { makeMinifig, animateMinifig, makeCar, makeMixer, makeLorry, makeBus, makeMotorbike } from './actors.js';
 import { MONTHS } from './seasons.js';
 import { KWALL } from './roofs.js';
 import { Soundscape } from './sound.js';
@@ -132,7 +132,7 @@ function showToast(t) { const e = $('toast'); e.textContent = t; e.classList.add
 
 // ------------------------------------------------------------------ build the village
 let K, G, W, BOUNDS, MONTH, treeXZ = [], studChunks = [], brickChunks = [], dynamic = { clouds: [] };
-const traffic = { L: 0, cars: [], idle: [], next: [1, 3], mixerAt: -60 };
+const traffic = { L: 0, cars: [], idle: [], queue: [0, 0], mixerAt: -60, busesToday: 0, toNewark: 1, data: null, counted: {} };
 window.__dbg.traffic = traffic;   // traffic.spawn(dir, t) adds a vehicle
 const groundStuds = new Map();
 const stud = { hi: studGeometry(10, true), lo: studGeometry(6, false) };
@@ -175,8 +175,9 @@ async function build() {
   if (data.terrain) data.terrainArr = new Int16Array(await (await fetch('data/' + data.terrain.file)).arrayBuffer());
   if (data.ndsm) data.ndsmArr = new Uint8Array(await (await fetch('data/' + data.ndsm.file)).arrayBuffer());
   if (data.roofs) data.roofsArr = new Uint8Array(await (await fetch('data/' + data.roofs.file)).arrayBuffer());
-  // optional hand-surveyed buildings
+  // optional hand-surveyed buildings, and the traffic counts
   try { const r = await fetch('data/survey.json'); if (r.ok) data.survey = await r.json(); } catch (e) { /* none */ }
+  try { const r = await fetch('data/traffic.json'); if (r.ok) traffic.data = await r.json(); } catch (e) { /* made-up traffic */ }
   // the month to show (?month=1..12, else this month): crops, leaves and hedges follow the year
   const qm = +new URLSearchParams(location.search).get('month');
   MONTH = qm >= 1 && qm <= 12 ? qm : new Date().getMonth() + 1; data.month = MONTH;
@@ -230,10 +231,11 @@ async function build() {
   addClouds();
   traffic.L = K.carPath.length > 1 ? polylineLength(K.carPath) : 0;
   traffic.spawn = spawnVehicle;
-  // a few vehicles already on the road when the tour starts
-  for (const dir of [1, -1]) for (let k = 0; k < 2; k++) if (traffic.L) {
-    spawnVehicle(dir, 0); const c = traffic.cars[traffic.cars.length - 1];
-    c.s = traffic.L * (0.15 + k * 0.4 + Math.random() * 0.25); if (dir < 0) c.s = traffic.L - c.s;
+  if (traffic.L) {
+    // Newark is to the south-east: which way along the road that is
+    const a = K.carPath[0], b = K.carPath[K.carPath.length - 1];
+    traffic.toNewark = (b[0] - a[0]) + (b[1] - a[1]) > 0 ? 1 : -1;
+    setupBuses();
   }
   buildMinimap();
   placePlayerAtStart();
@@ -244,6 +246,7 @@ async function build() {
     sessionStorage.removeItem('kneesall-resume');
     if (r) { player.pos.fromArray(r.p); Object.assign(player, { yaw: r.yaw, pitch: r.pitch, fly: r.fly, third: r.third }); timeIdx = r.time; }
   } catch (e) { /* storage unavailable: start at the usual place */ }
+  if (traffic.L) seedTraffic();
 }
 
 function signCanvas(s) {
@@ -489,38 +492,161 @@ function addClocks(world, parent) {
   }
 }
 
+// ------------------------------------------------------------------ the model's clock
+// "Now" is the real time; the other times of day start at their hour, today, and run on from when they were chosen.
+// The traffic, the bus, the church clock and the birds keep to it.
+let clockIdx = -1, clockAt = 0;
+function modelNow() {
+  const t = TIMES[timeIdx];
+  if (t.now) return new Date();
+  if (clockIdx !== timeIdx) { clockIdx = timeIdx; clockAt = performance.now(); }
+  const d = new Date(); d.setHours(0, 0, 0, 0);
+  return new Date(d.getTime() + t.hour * 3600000 + (performance.now() - clockAt));
+}
+window.__dbg.modelNow = () => modelNow();
+// for testing while the page is hidden (no animation frames): run the traffic on by `secs` and draw a frame
+window.__dbg.runTraffic = (secs, step = 1 / 30) => { for (let k = 0; k < secs / step; k++) { clockAt -= step * 1000; traffic.t = (traffic.t ?? 0) + step; updateTraffic(step, performance.now() / 1000 + traffic.t); } renderer.render(scene, camera); };
+const ymd = (d) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate() + '';
+
 // ------------------------------------------------------------------ traffic on Newark Road (A616)
-// Cars come in at either end of the baseplate, drive through on the left at 30 mph and leave at the other end; every
-// now and again one of them is a cement mixer. The vehicles are made up: nobody counted the A616's traffic.
+// Vehicles come in at either end of the baseplate, drive through on the left at about 30 mph and leave at the other
+// end. How many, of what kind and which way follow the Department for Transport's counts (data/traffic.json, from
+// tools/traffic.py): the A616's average day, spread over the hours and days of the week, morning traffic mostly
+// towards Newark and evening traffic back. The vehicles themselves (and their colours) are made up. Now and again,
+// in working hours, one is a cement mixer. The 733 school bus runs on its timetable.
 const MPH = 0.44704 / 0.7;   // studs per second
-const CAR_COLOURS = [PAL.red, PAL.blue, PAL.white, PAL.black, PAL.lbg, PAL.dbg, PAL.darkBlue, PAL.white, PAL.darkRed, PAL.lbg, PAL.darkGreen, PAL.yellow];
-function spawnVehicle(dir, t) {
-  const mixer = !traffic.cars.some(c => c.mixer) && (t - traffic.mixerAt > 150 || (t - traffic.mixerAt > 40 && Math.random() < 0.1));
-  const kind = mixer ? 'mixer' : Math.random() < 0.18 ? 'van' : 'hatch';
-  let i = traffic.idle.findIndex(v => v.kind === kind && (mixer || Math.random() < 0.5));
+// the colours of new cars registered in the UK in 2025 (SMMT): grey 28%, black 23%, blue 15%, white 13%, red 6%,
+// green 5%, silver and the rest 10%
+const CAR_COLOURS = [[PAL.dbg, 20], [PAL.lbg, 8], [PAL.black, 23], [PAL.blue, 8], [PAL.darkBlue, 7], [PAL.white, 13], [PAL.red, 4],
+  [PAL.darkRed, 2], [PAL.darkGreen, 5], [PAL.lbg, 7], [PAL.yellow, 1], [PAL.orange, 1], [PAL.reddishBrown, 1]];
+const pick = (list) => { let r = Math.random() * list.reduce((a, [, w]) => a + w, 0); for (const [v, w] of list) if ((r -= w) < 0) return v; return list[0][0]; };
+const CAB_COLOURS = [[PAL.white, 5], [PAL.blue, 2], [PAL.red, 1], [PAL.darkBlue, 2], [PAL.lbg, 1], [PAL.darkGreen, 1]];
+const TRAILER_COLOURS = [[PAL.white, 4], [PAL.lbg, 3], [PAL.darkBlue, 2], [PAL.darkGreen, 1], [PAL.red, 1]];
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+// vehicles an hour each way at a moment, [the +1 direction along carPath, the -1 direction]: the day's flow times the
+// national index for the hour and weekday, eased between hours
+function flowAt(d) {
+  const T = traffic.data;
+  if (!T) return [270, 270];
+  const h = d.getHours() + d.getMinutes() / 60 - 0.5, h0 = Math.floor(h), f = h - h0;
+  const at = (hr) => {
+    const day = (d.getDay() + (hr < 0 ? 6 : hr > 23 ? 1 : 0)) % 7, hh = (hr + 24) % 24;
+    return [T.hourIndex[DAY_NAMES[day]][hh], T.towardsNewark[hh] ?? 0.5];
+  };
+  const [i0, n0] = at(h0), [i1, n1] = at(h0 + 1);
+  const all = T.perDay.all / 24 * (i0 + (i1 - i0) * f) / 100, toNewark = n0 + (n1 - n0) * f;
+  return traffic.toNewark > 0 ? [all * toNewark, all * (1 - toNewark)] : [all * (1 - toNewark), all * toNewark];
+}
+
+// what comes next, in the proportions counted: cars and taxis, vans, lorries (of each kind), coaches, motorbikes
+function pickKind(t, d) {
+  const T = traffic.data, P = T?.perDay;
+  if (!P) return Math.random() < 0.18 ? 'van' : 'hatch';
+  const h = d.getHours(), workday = d.getDay() > 0 && h >= 7 && h < 17;
+  if (workday && !traffic.cars.some(c => c.mixer) && (t - traffic.mixerAt > 150 || (t - traffic.mixerAt > 40 && Math.random() < 0.1))) return 'mixer';
+  const coaches = Math.max(0, P.buses - traffic.busesToday);
+  const k = pick([['hatch', P.cars], ['van', P.vans], ['lorry', P.lorries], ['coach', coaches], ['bike', P.motorbikes]]);
+  if (k !== 'lorry') return k;
+  const H = T.lorries;
+  return pick([['rigid2', H.rigid2], ['rigid3', H.rigid3], ['mixer', H.rigid4], ['artic', H.artic]]);
+}
+
+function spawnVehicle(dir, t, kind = null, bus = null) {
+  const d = modelNow();
+  kind ??= pickKind(t, d);
+  const mixer = kind === 'mixer';
+  let i = bus ? -1 : traffic.idle.findIndex(v => v.kind === kind && !v.bus && (mixer || Math.random() < 0.5));
   let v;
   if (i >= 0) v = traffic.idle.splice(i, 1)[0];
   else {
-    const hex = kind === 'van' ? (Math.random() < 0.6 ? PAL.white : PAL.lbg) : CAR_COLOURS[Math.floor(Math.random() * CAR_COLOURS.length)];
-    v = { kind, obj: mixer ? makeMixer() : makeCar(hex, kind) };
+    const obj = mixer ? makeMixer()
+      : kind === 'van' ? makeCar(Math.random() < 0.6 ? PAL.white : PAL.lbg, 'van')
+      : kind === 'hatch' ? makeCar(pick(CAR_COLOURS), 'hatch')
+      : kind === 'artic' ? makeLorry('artic', pick(CAB_COLOURS), pick(TRAILER_COLOURS))
+      : kind === 'rigid2' || kind === 'rigid3' ? makeLorry(kind, pick(CAB_COLOURS), Math.random() < 0.7 ? PAL.white : pick(TRAILER_COLOURS))
+      : kind === 'coach' ? makeBus([PAL.lbg, PAL.white], null)
+      : kind === 'bus' ? (bus.obj ??= makeBus(bus.livery, bus.dest))
+      : makeMotorbike(pick(CAR_COLOURS));
+    v = { kind, obj };
   }
   if (mixer) traffic.mixerAt = t;
-  Object.assign(v, { dir, mixer, s: dir > 0 ? 0 : traffic.L, speed: (mixer ? 27 : 28 + Math.random() * 5) * MPH });
+  const heavy = mixer || /^(rigid|artic|coach|bus)/.test(kind);
+  Object.assign(v, { dir, mixer, heavy, bike: kind === 'bike', bus, s: dir > 0 ? 0 : traffic.L, speed: (heavy ? 27 + Math.random() * 2 : 28 + Math.random() * 5) * MPH });
   v.v = v.speed; v.obj.visible = true;
   scene.add(v.obj); traffic.cars.push(v);
+  traffic.counted[kind + (dir > 0 ? '+' : '-')] = (traffic.counted[kind + (dir > 0 ? '+' : '-')] ?? 0) + 1;   // for __dbg
+  return v;
+}
+
+// a few vehicles already on the road, as many as the flow would have on it
+function seedTraffic() {
+  const flow = flowAt(modelNow()), cross = traffic.L / (30 * MPH);
+  [1, -1].forEach((dir, k) => {
+    let n = 0; for (let mean = flow[k] / 3600 * cross, p = Math.exp(-mean), u = Math.random(), c = p; u > c && n < 12; ) { n++; p *= mean / n; c += p; }
+    for (let j = 0; j < n; j++) {
+      const s = traffic.L * (0.05 + 0.9 * Math.random());
+      if (traffic.cars.some(c => c.dir === dir && Math.abs(c.s - s) < 30)) continue;
+      spawnVehicle(dir, 0).s = s;
+    }
+  });
+}
+
+// The scheduled buses (data/traffic.json `buses`, from the Bus Open Data Service): on the days a trip runs it comes
+// along the A616, calls at its Kneesall stop (waiting a minute there where the trip starts, and setting down where it
+// ends) and drives on out of the village. Where it comes from before a trip, and goes after, isn't published, so it
+// keeps going the same way along the A616.
+function busRuns(trip, d) {
+  const k = ymd(d);
+  if (trip.off.includes(k)) return false;
+  if (trip.on.includes(k)) return true;
+  return !!trip.days && trip.days[(d.getDay() + 6) % 7] === '1' && k >= trip.from && k <= trip.to;
+}
+const secs = (hms) => { const [h, m, x] = hms.split(':').map(Number); return h * 3600 + m * 60 + (x || 0); };
+function setupBuses() {
+  const path = K.carPath, along = ([lat, lon]) => {
+    const [x, z] = K.project([lat, lon]), n = distToPolyline(x, z, path);
+    let s = 0; for (let i = 0; i < n.seg; i++) s += Math.hypot(path[i + 1][0] - path[i][0], path[i + 1][1] - path[i][1]);
+    return s + n.t * Math.hypot(path[n.seg + 1][0] - path[n.seg][0], path[n.seg + 1][1] - path[n.seg][1]);
+  };
+  traffic.buses = [];
+  for (const trip of traffic.data?.buses?.trips ?? []) {
+    const call = trip.calls[0]; if (!call || trip.path.length < 2) continue;
+    const dir = Math.sign(along(trip.path[trip.path.length - 1]) - along(trip.path[0])) || 1;
+    // stop at the OpenStreetMap bus stop nearest the timetable's (where the stop sign is drawn)
+    const [sx, sz] = K.project(call.at);
+    const osm = (K.busStops ?? []).reduce((b, p) => Math.hypot(p.x - sx, p.z - sz) < Math.hypot(b.x - sx, b.z - sz) ? p : b, { x: sx, z: sz });
+    const stopS = along(K.unproject([osm.x, osm.z]));
+    const tD = secs(call.depart) + (call.last ? 40 : 0), tA = Math.min(secs(call.arrive), tD - (call.first ? 60 : 20));
+    traffic.buses.push({ trip, dir, stopS, tA, tD, livery: [PAL.darkBlue, PAL.white], dest: trip.route + ' ' + trip.headsign, done: '' });
+  }
+}
+function updateBuses(t, d) {
+  const now = d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds() + d.getMilliseconds() / 1000, sp = 28 * MPH, L = traffic.L;
+  traffic.busesToday = 0;
+  for (const b of traffic.buses ?? []) {
+    if (!busRuns(b.trip, d)) continue;
+    traffic.busesToday++;
+    const from = b.dir > 0 ? b.stopS : L - b.stopS;   // how far the stop is from where it comes in
+    const tIn = b.tA - from / sp, tOut = b.tD + (L - from) / sp, key = ymd(d);
+    if (b.done === key || now < tIn || now > tOut || traffic.cars.some(c => c.bus === b)) continue;
+    b.done = key;
+    const v = spawnVehicle(b.dir, t, 'bus', b);
+    const ds = now < b.tA ? -(b.tA - now) * sp : now < b.tD ? 0 : (now - b.tD) * sp;
+    v.s = Math.max(0, Math.min(L, b.stopS + b.dir * ds)); v.speed = sp; v.v = now >= b.tA && now < b.tD ? 0 : sp;
+  }
 }
 
 function updateTraffic(dt, t) {
   const path = K.carPath, L = traffic.L;
   if (!L) return;
-  for (const dir of [1, -1]) {
-    const k = dir > 0 ? 0 : 1;
-    if (t < traffic.next[k]) continue;
-    // keep a gap behind the last vehicle to come in
-    const clear = traffic.cars.every(c => c.dir !== dir || (dir > 0 ? c.s : L - c.s) > 30);
-    if (clear) spawnVehicle(dir, t);
-    traffic.next[k] = t + (clear ? 4 + -Math.log(1 - Math.random()) * 9 : 1);
-  }
+  const d = modelNow(), flow = flowAt(d), now = d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
+  updateBuses(t, d);
+  [1, -1].forEach((dir, k) => {
+    // arrivals at the edge of the baseplate as a Poisson stream at the hour's flow; they wait for room to come in
+    if (Math.random() < flow[k] / 3600 * dt) traffic.queue[k] = Math.min(3, traffic.queue[k] + 1);
+    if (traffic.queue[k] && traffic.cars.every(c => c.dir !== dir || (dir > 0 ? c.s : L - c.s) - (c.obj.userData.back ?? 0) > 30)) { spawnVehicle(dir, t); traffic.queue[k]--; }
+  });
   const p = player.pos;
   for (const c of traffic.cars) {
     const q = pointAlong(path, c.s), a = pointAlong(path, c.s - 3 * c.dir), b = pointAlong(path, c.s + 3 * c.dir);
@@ -531,8 +657,13 @@ function updateTraffic(dt, t) {
     const vx = p.x - q.x, vz = p.z - q.z, ahead = vx * tx + vz * tz - half, lateral = vx * tz - vz * tx;
     if (lateral > -1.5 && lateral < 6 && ahead > -half && ahead < 30 && p.y - K.roadY(p.x, p.z) < 3) target = ahead < 4 ? 0 : c.speed * Math.min(1, (ahead - 4) / 20);
     for (const o of traffic.cars) if (o !== c && o.dir === c.dir) {
-      const g = (o.s - c.s) * c.dir - (o.obj.userData.L + c.obj.userData.L) / 2;
+      const g = (o.s - c.s) * c.dir - (o.obj.userData.L + c.obj.userData.L) / 2 - (o.obj.userData.back ?? 0);
       if (g > -1 && g < 20) target = Math.min(target, Math.max(0, o.v * (g - 4) / 10));
+    }
+    // the bus pulls up at its stop and waits there until it is due to leave
+    if (c.bus) {
+      const toStop = (c.bus.stopS - c.s) * c.dir;
+      if (toStop > -0.5 && now < c.bus.tD) target = Math.min(target, toStop < 0.5 ? 0 : Math.max(1.5, c.speed * Math.min(1, toStop / 25)));
     }
     c.v += (target - c.v) * Math.min(1, dt * (target < c.v ? 5 : 0.8));
     c.s += c.dir * c.v * dt;
@@ -540,15 +671,23 @@ function updateTraffic(dt, t) {
     const px = q.x + tz * 2.6, pz = q.z - tx * 2.6;
     const y0 = K.roadY(px - tx * half, pz - tz * half), y1 = K.roadY(px + tx * half, pz + tz * half);
     c.obj.position.set(px, (y0 + y1) / 2, pz);
-    c.obj.rotation.set(0, Math.atan2(-tz, tx), Math.atan2(y1 - y0, half * 2), 'YZX');
-    const r = c.obj.userData.r;
-    for (const w of c.obj.userData.wheels) w.rotation.z -= c.v * dt / r;
-    if (c.obj.userData.drum) c.obj.userData.drum.rotation.x += dt * 1.6;
+    const yaw = Math.atan2(-tz, tx);
+    c.obj.rotation.set(0, yaw, Math.atan2(y1 - y0, half * 2), 'YZX');
+    const u = c.obj.userData;
+    if (u.trailer) {
+      // the trailer follows the road behind the tractor: from its axles to the fifth wheel
+      const f = pointAlong(path, c.s - c.dir * u.pivot), r = pointAlong(path, c.s - c.dir * (u.pivot + u.axle));
+      let rel = Math.atan2(-(f.z - r.z), f.x - r.x) - yaw;
+      rel = Math.atan2(Math.sin(rel), Math.cos(rel));
+      u.trailer.rotation.y = rel;
+    }
+    for (const w of u.wheels) w.rotation.z -= c.v * dt / (w.scale.x || 1);
+    if (u.drum) u.drum.rotation.x += dt * 1.6;
   }
   // gone off the end of the baseplate
   for (let i = traffic.cars.length - 1; i >= 0; i--) {
-    const c = traffic.cars[i];
-    if (c.s < -2 || c.s > L + 2) { scene.remove(c.obj); traffic.idle.push(c); traffic.cars.splice(i, 1); }
+    const c = traffic.cars[i], back = c.obj.userData.back ?? 0;
+    if (c.s < -2 - back || c.s > L + 2 + back) { scene.remove(c.obj); if (!c.bus) traffic.idle.push(c); traffic.cars.splice(i, 1); }
   }
 }
 
@@ -934,7 +1073,7 @@ function updateWorld(dt, t) {
   updateRain(dt);
   if (WEATHERS[weatherIdx].live && performance.now() - liveAt > 900000) fetchWeather();
   if (dynamic.clock) {
-    const d = new Date(); const h = d.getHours() % 12 + d.getMinutes() / 60, m = d.getMinutes() + d.getSeconds() / 60;
+    const d = modelNow(); const h = d.getHours() % 12 + d.getMinutes() / 60, m = d.getMinutes() + d.getSeconds() / 60;
     dynamic.clock.hr.rotation.z = -h / 12 * Math.PI * 2; dynamic.clock.mn.rotation.z = -m / 60 * Math.PI * 2;
   }
   updateTraffic(dt, t);
@@ -1108,9 +1247,9 @@ function updateSound(dt, now) {
   if (now - treesAt > 500) { treesAt = now; let n = 0; for (const [x, z] of treeXZ) if (Math.abs(x - p.x) < 30 && Math.abs(z - p.z) < 30) n++; treesNear = Math.min(1, n / 8); }
   const moved = soundPrev && player.onGround && !player.fly ? Math.hypot(p.x - soundPrev.x, p.z - soundPrev.z) : 0;
   soundPrev = { x: p.x, z: p.z };
-  const t = TIMES[timeIdx], d = new Date();
+  const d = modelNow();
   sound.update(dt, { x: camera.position.x, z: camera.position.z, yaw: player.yaw, cars: traffic.cars, weather, month: MONTH,
-    hour: t.now ? d.getHours() + d.getMinutes() / 60 : t.hour, trees: treesNear, step: moved < 2 ? moved : 0,
+    hour: d.getHours() + d.getMinutes() / 60, trees: treesNear, step: moved < 2 ? moved : 0,
     hard: G.has(Math.floor(p.x), Math.floor(p.z), 2) });
 }
 

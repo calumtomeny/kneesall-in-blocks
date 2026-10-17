@@ -29,15 +29,38 @@ east; `look=heading,pitch` in compass degrees, `fly=` metres up, `view=third`, `
 | Building shapes as clean parts (every building) | Fitted to the LIDAR by `tools/fit_buildings.py` | as above |
 | Weather now (cloud, rain, snow, wind) | Open-Meteo forecast API, fetched live | CC BY 4.0 — Weather data by Open-Meteo.com |
 | Crop in each field | Rural Payments Agency Crop Map of England (CROME) 2024, majority per hedge-bounded field (`tools/crome.py`) | OGL v3 — © Rural Payments Agency copyright and/or database right 2024 |
+| Traffic on Newark Road: how many vehicles, of what kind, which way, by hour and day | Department for Transport road traffic statistics: count point 91065 (annual average daily flow 2025, and manual counts by hour and direction) and table TRA0307 (`tools/traffic.py`) | OGL v3 — contains DfT data |
+| The 733 school bus | Bus Open Data Service timetables (GTFS, East Midlands) | OGL v3 |
+| Car colours | SMMT new car registrations by colour, 2025 | — |
 | Hand-surveyed buildings, walls, doors, windows, chimneys, labels (`data/survey.json`) | Measured from the LIDAR; observed in Street View and aerial photographs (Oct 2026) and recorded by hand | — |
 
 Nothing is made up. Where no data says what something looks like, it gets a plain default: red brick walls and
 white front doors on houses nobody has looked at, and regularly spaced windows on walls not seen from a road. The
 churchyard's headstones are laid out in rows, as the real ones aren't mapped. Things that exist but whose
 positions aren't known are left out: most street lamps and road signs (only those located in Street View are
-drawn), and the parked cars, people and animals. The one exception is the traffic on Newark Road (the A616):
-made-up cars, vans and now and then a cement mixer drive through on the left at about 30 mph, and stop for you
-if you stand in the road.
+drawn), and the parked cars, people and animals. The one exception is the traffic on Newark Road (the A616): the
+vehicles themselves are made up, but not how many there are or what they are (see below).
+
+### Traffic
+
+Newark Road carries 5,669 motor vehicles on an average day (the Department for Transport's estimate for 2025 at
+count point 91065, a kilometre west of the village): 79% cars and taxis, 17% vans, 3% lorries, and a few coaches
+and motorbikes. The model sends them through in those proportions, the lorries split as the DfT's manual counts
+there found them (two- and three-axle box lorries, four-axle rigids such as tippers and mixers, and articulated
+lorries, whose trailers follow the road round the bends). How many come along each hour follows the DfT's
+national pattern for that hour and day of the week (table TRA0307: busy at the rush hours on weekdays, later and
+flatter at weekends, a car every few minutes in the small hours), and which way they go follows the counts at
+Kneesall: in the morning rush two in three are heading for Newark, in the evening most come back. They drive on the
+left at about 30 mph, queue behind each other and stop for you if you stand in the road. Car colours are in the
+proportions of new cars registered in 2025 (SMMT). In working hours, now and again one of them is a cement mixer.
+
+The only timetabled bus through Kneesall is Stagecoach's 733, a school service: on school days it leaves the
+School Lane stop at 07:50 for Tuxford Academy (south-east along Newark Road) and comes back at 16:07, from the
+Bus Open Data Service timetable. Where it is before and after isn't published, so it simply drives through on
+Newark Road. The bus is a plain single-decker: which vehicle runs the service isn't known.
+
+All of this runs on the model's clock: the real time with the time of day on "Now", otherwise from the chosen
+time's hour (Morning is 8 am, and so on), running on as you watch. St Bartholomew's clock keeps the same time.
 
 ### The year
 
@@ -176,14 +199,19 @@ closed plain timber gate; where OSM gives a `maxheight` there is a lattice heigh
 
 Steps 4–8 add to the JSON written by step 1, so run them in that order.
 
+9. `python3 tools/traffic.py data/traffic.json --tra0307 tra0307-traffic-distribution-by-time-of-day.ods --gtfs itm_east_midlands_gtfs.zip`
+   (the A616's traffic from the DfT road traffic API; TRA0307 from the DfT's road traffic statistics tables; the
+   bus timetables from https://data.bus-data.dft.gov.uk/timetable/download/gtfs-file/east_midlands/, about 200 MB.
+   Rerun it when the timetable year changes: the 733's dates in `data/traffic.json` run to July 2027)
+
 ## Code
 
-- `js/main.js` – renderer, sky, controls, collision, traffic, minimap
+- `js/main.js` – renderer, sky, controls, collision, traffic (and the bus), minimap
 - `js/osm.js` – turns the data into ground, roads, buildings, trees and hedges
 - `js/roofs.js` – turns the LIDAR heights over a footprint into a roof height per stud
 - `js/buildings.js` – fits LEGO buildings onto real footprints (walls and roofs from `roofs.js`, or a gable/hipped/flat roof without LIDAR), and roof materials
 - `js/survey.js` – builds buildings from measured parts (fitted or hand-surveyed), yards and drives from `data/survey.json`
 - `tools/fit_buildings.py`, `tools/survey_grid.py`, `tools/streetview_bearings.py` – fit every building's parts from the LIDAR; print LIDAR grids for surveying; which buildings a Street View panorama sees
 - `js/bricks.js` – voxel world → merged, bevelled brick geometry, and a plain version of each chunk (only the faces that show, merged into rectangles) drawn from a distance
-- `js/parts.js`, `js/landmarks.js`, `js/actors.js` – houses, street furniture, church, the player's minifig, the traffic
+- `js/parts.js`, `js/landmarks.js`, `js/actors.js` – houses, street furniture, church, the player's minifig, the cars, vans, lorries, buses and motorbikes
 - `tools/` – data converters (OSGB grid conversion, shapefile and GeoTIFF readers), dev server

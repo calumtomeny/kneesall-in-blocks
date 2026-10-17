@@ -71,7 +71,7 @@ export function buildKneesall(data) {
   const project = ([lat, lon]) => [(lon - lon0) * Math.cos(lat0 * Math.PI / 180) * 111320 / mps, -(lat - lat0) * 110540 / mps];
   const unproject = ([x, z]) => [lat0 - z * mps / 110540, lon0 + x * mps / (Math.cos(lat0 * Math.PI / 180) * 111320)];
   const inBounds = (x, z, m = 0) => Math.abs(x) < half - m && Math.abs(z) < half - m;
-  const labels = [];
+  const labels = [], busStops = [];
 
   // ------------------------------------------------------------ terrain (LIDAR bare earth), in units above the village centre
   const T = data.terrainArr, TI = data.terrain;
@@ -795,7 +795,7 @@ export function buildKneesall(data) {
     // nudge off the carriageway onto the verge/pavement edge
     let px = x, pz = z;
     if (n && n.d < n.road.spec.hw + 1) { const dx = p.x - n.qx, dz = p.z - n.qz, L = Math.hypot(dx, dz) || 1; px = Math.floor(n.qx + dx / L * (n.road.spec.hw + PAVE + 1)); pz = Math.floor(n.qz + dz / L * (n.road.spec.hw + PAVE + 1)); }
-    if (p.kind === 'bus_stop') { sign(W, px, pz, 'BUS', { w: 1.6, h: 1.6, postH: 7, style: 'bus' }); labels.push({ name: 'Bus stop: ' + p.name, x: px, z: pz, r: 3 }); }
+    if (p.kind === 'bus_stop') { sign(W, px, pz, 'BUS', { w: 1.6, h: 1.6, postH: 7, style: 'bus' }); labels.push({ name: 'Bus stop: ' + p.name, x: px, z: pz, r: 3 }); busStops.push({ x: px, z: pz, name: p.name }); }
     if (p.kind === 'post_box') postBox(W, px, pz);
     if (p.kind === 'bench') bench(W, px, pz);
   }
@@ -927,7 +927,7 @@ export function buildKneesall(data) {
   const roadY = (x, z) => terrainY(x, z) + ROAD_TOP;
   let minY = Infinity; for (let i = 0; i < G.base.length; i++) minY = Math.min(minY, G.base[i]);
   G.minY = minY;
-  return { G, W, buildings, roadB, roadText, labels, wires, attribution: data.attribution, newark, carPath, namedRoads, rightsOfWay, terrainY, roadY, project, unproject };
+  return { G, W, buildings, roadB, roadText, labels, wires, attribution: data.attribution, newark, carPath, namedRoads, rightsOfWay, terrainY, roadY, project, unproject, busStops };
 }
 
 // Merge ground cells into row runs. Tops go in the studded/smooth builders; terrace sides (where the

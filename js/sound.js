@@ -31,7 +31,7 @@ export class Soundscape {
     return this.on;
   }
 
-  // s: { x, z, yaw (radians, the way the camera faces), cars: [{ obj, v, mixer }], weather: { windSpeed, rain, snow },
+  // s: { x, z, yaw (radians, the way the camera faces), cars: [{ obj, v, heavy, bike }], weather: { windSpeed, rain, snow },
   //      hour 0..24, month 1..12, trees (0..1, how wooded it is round about), step (studs walked this frame), hard }
   update(dt, s) {
     const ctx = this.ctx;
@@ -62,13 +62,13 @@ export class Soundscape {
         // an engine: a low buzzing tone and its octave, and road noise from the tyres
         const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(); o1.type = 'sawtooth'; o2.type = 'square';
         const src = ctx.createBufferSource(); src.buffer = this.noise; src.loop = true;
-        const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = car.mixer ? 260 : 420;
+        const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = car.heavy ? 260 : car.bike ? 1100 : 420;
         const tyre = ctx.createBiquadFilter(); tyre.type = 'bandpass'; tyre.frequency.value = 900; tyre.Q.value = 0.6;
         const ge = ctx.createGain(); ge.gain.value = 0.35; const gt = ctx.createGain(); gt.gain.value = 0.5;
         const g = ctx.createGain(); g.gain.value = 0; const pan = ctx.createStereoPanner();
         o1.connect(lp); o2.connect(lp); lp.connect(ge); ge.connect(g); src.connect(tyre); tyre.connect(gt); gt.connect(g); g.connect(pan); pan.connect(this.master);
         o1.start(); o2.start(); src.start();
-        v = { o1, o2, g, pan, last: null, base: car.mixer ? 32 : 50 + Math.random() * 12, stop: () => { try { o1.stop(); o2.stop(); src.stop(); } catch (e) { /* stopped */ } } };
+        v = { o1, o2, g, pan, last: null, base: car.heavy ? 30 + Math.random() * 6 : car.bike ? 85 + Math.random() * 20 : 50 + Math.random() * 12, stop: () => { try { o1.stop(); o2.stop(); src.stop(); } catch (e) { /* stopped */ } } };
         this.voices.set(car, v);
       }
       const p = car.obj.position, { d, pan } = this.place(s, p.x, p.z);
@@ -78,7 +78,7 @@ export class Soundscape {
       const shift = 343 / Math.max(200, 343 - Math.max(-60, Math.min(60, vr)));
       const rev = 0.65 + 0.35 * Math.min(1, car.v / 13);
       v.o1.frequency.setTargetAtTime(v.base * rev * shift, now, 0.05); v.o2.frequency.setTargetAtTime(v.base * 2 * rev * shift, now, 0.05);
-      const loud = (car.mixer ? 0.5 : 0.32) * (0.4 + 0.6 * Math.min(1, car.v / 13)) / (1 + (d / 12) ** 2);
+      const loud = (car.heavy ? 0.5 : car.bike ? 0.4 : 0.32) * (0.4 + 0.6 * Math.min(1, car.v / 13)) / (1 + (d / 12) ** 2);
       v.g.gain.setTargetAtTime(loud, now, 0.05); v.pan.pan.setTargetAtTime(pan, now, 0.05);
     }
   }

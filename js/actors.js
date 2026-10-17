@@ -83,6 +83,12 @@ export function makeMinifig(o = {}) {
     const back = new THREE.Mesh(new THREE.CylinderGeometry(0.66, 0.66, 0.7, 20, 1, true, Math.PI * 0.6, Math.PI * 0.8), hm);
     back.position.y = 4.2; back.material.side = THREE.DoubleSide; root.add(back);
   }
+  if (o.helmet !== undefined) {
+    const h = new THREE.Mesh(new THREE.SphereGeometry(0.74, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), plastic(o.helmet));
+    h.scale.y = 1.05; h.position.y = 4.15; root.add(h);
+    const visor = new THREE.Mesh(new THREE.CylinderGeometry(0.745, 0.745, 0.42, 20, 1, true, -Math.PI * 0.32, Math.PI * 0.64), plastic(0x222222, { transparent: true, opacity: 0.75 }));
+    visor.position.y = 4.2; root.add(visor);
+  }
   if (o.cap !== undefined) {
     const cm = plastic(o.cap);
     const c = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.64, 0.45, 20), cm); c.position.y = 4.8; root.add(c);
@@ -208,5 +214,118 @@ export function makeMixer() {
   const tilt = new THREE.Group(); tilt.position.set(7.2 - L / 2, 4.9, 0); tilt.rotation.z = -0.2;
   tilt.add(drum); g.add(tilt);
   g.userData.drum = drum;
+  return g;
+}
+
+// Lorries: a box lorry on two or three axles, or an articulated lorry (a tractor unit pulling a curtain-sided
+// trailer, which follows the road round bends: userData.trailer is turned each frame, userData.back how far it
+// reaches behind the tractor)
+export function makeLorry(kind, cabHex, bodyHex) {
+  const b = new Builder(), gl = new Builder();
+  const artic = kind === 'artic', L = artic ? 9 : 17, Wd = 5, cab = col(cabHex), k = col(PAL.black), grey = col(PAL.lbg), dk = col(PAL.dbg);
+  const bx = (x0, y0, z0, x1, y1, z1, cc, o) => b.box(x0 - L / 2, y0, z0 - Wd / 2, x1 - L / 2, y1, z1 - Wd / 2, cc, o);
+  const gb = (x0, y0, z0, x1, y1, z1) => gl.box(x0 - L / 2, y0, z0 - Wd / 2, x1 - L / 2, y1, z1 - Wd / 2, col(0xffffff), { chamfer: 0, gap: 0, jitter: false });
+  const c0 = L - 4.4;                                         // back of the cab
+  bx(0.4, 1.1, 0.6, L - 0.4, 1.7, Wd - 0.6, k);               // chassis
+  bx(c0, 1.7, 0, L, 3.8, Wd, cab);                            // cab lower
+  for (const z of [0, Wd - 0.4]) { bx(c0, 3.8, z, c0 + 0.4, 5.8, z + 0.4, cab); bx(L - 0.4, 3.8, z, L, 5.8, z + 0.4, cab); }
+  bx(c0, 5.8, 0, L, 6.6, Wd, cab);                            // cab roof
+  bx(c0, 3.8, 0.4, c0 + 0.4, 5.8, Wd - 0.4, cab);
+  gb(L - 0.4, 3.8, 0.4, L - 0.1, 5.8, Wd - 0.4);              // windscreen
+  gb(c0 + 0.4, 3.8, 0.05, L - 0.4, 5.8, 0.3); gb(c0 + 0.4, 3.8, Wd - 0.3, L - 0.4, 5.8, Wd - 0.05);
+  bx(L, 1.3, 0, L + 0.3, 2.1, Wd, grey);                      // bumper
+  bx(L, 2.4, 0.4, L + 0.12, 3.0, 1.3, col(0xfff7d6), { chamfer: 0.02 }); bx(L, 2.4, Wd - 1.3, L + 0.12, 3.0, Wd - 0.4, col(0xfff7d6), { chamfer: 0.02 });
+  bx(L - 0.1, 2.0, 1.6, L + 0.05, 3.4, Wd - 1.6, dk);         // grille
+  let wheels;
+  if (artic) {
+    bx(1.0, 1.7, 1.2, 3.6, 2.0, Wd - 1.2, dk);                // fifth wheel
+    for (const z of [0.6, Wd - 1.4]) bx(c0 - 0.6, 1.7, z, c0, 5.4, z + 0.8, dk);   // exhaust stacks behind the cab
+    wheels = [[2.0, -Wd / 2 + 0.4], [2.0, Wd / 2 - 0.4], [L - 2.0, -Wd / 2 + 0.4], [L - 2.0, Wd / 2 - 0.4]];
+  } else {
+    const body = col(bodyHex);
+    bx(0.2, 1.7, -0.1, c0 - 0.3, 7.4, Wd + 0.1, body);         // box body
+    bx(-0.05, 1.8, 0.2, 0.2, 7.2, Wd - 0.2, grey);            // rear doors
+    bx(-0.1, 2.3, 0.6, 0.05, 2.8, 1.3, col(PAL.red), { chamfer: 0.02 }); bx(-0.1, 2.3, Wd - 1.3, 0.05, 2.8, Wd - 0.6, col(PAL.red), { chamfer: 0.02 });
+    wheels = [[3.0, -Wd / 2 + 0.4], [3.0, Wd / 2 - 0.4], [L - 2.4, -Wd / 2 + 0.4], [L - 2.4, Wd / 2 - 0.4]];
+    if (kind === 'rigid3') wheels.push([5.4, -Wd / 2 + 0.4], [5.4, Wd / 2 - 0.4]);
+  }
+  const g = assemble(b, gl, wheels, L, Wd, 1.15);
+  if (!artic) return g;
+  // the trailer, pivoting on the fifth wheel
+  const T = 25, tb = new Builder(), body = col(bodyHex), side = col(PAL.lbg);
+  const tx = (x0, y0, z0, x1, y1, z1, cc, o) => tb.box(x0 - T, y0, z0 - Wd / 2, x1 - T, y1, z1 - Wd / 2, cc, o);
+  tx(0.4, 1.4, 0.6, T, 2.0, Wd - 0.6, k);                     // chassis
+  tx(0, 2.0, -0.1, T, 2.5, Wd + 0.1, side);                   // floor
+  tx(0, 2.5, -0.1, T, 7.2, Wd + 0.1, body);                   // curtain sides
+  tx(0, 7.2, -0.1, T, 7.6, Wd + 0.1, side);                   // roof rail
+  tx(-0.1, 2.6, 0.3, 0.1, 7.1, Wd - 0.3, side);               // rear doors
+  tx(-0.15, 2.0, 0.6, 0.05, 2.5, 1.3, col(PAL.red), { chamfer: 0.02 }); tx(-0.15, 2.0, Wd - 1.3, 0.05, 2.5, Wd - 0.6, col(PAL.red), { chamfer: 0.02 });
+  tx(9, 1.0, 0.8, 9.6, 2.0, Wd - 0.8, grey);                  // landing legs
+  const trailer = new THREE.Group(); trailer.position.set(2.3 - L / 2, 0, 0);
+  const tm = new THREE.Mesh(tb.toGeometry(), bodyMat); tm.receiveShadow = true; trailer.add(tm);
+  const tb2 = blob(T, Wd); tb2.position.x = -T / 2; trailer.add(tb2);
+  for (const x of [2.0, 4.4, 6.8]) for (const z of [-Wd / 2 + 0.4, Wd / 2 - 0.4]) {
+    const w = new THREE.Mesh(wheelGeometry(), wheelMat); w.scale.setScalar(1.15); w.position.set(x - T, 1.15, z); trailer.add(w); g.userData.wheels.push(w);
+  }
+  g.add(trailer);
+  Object.assign(g.userData, { trailer, pivot: L / 2 - 2.3, axle: T - 4.4, back: T - 2.3 });
+  return g;
+}
+
+// A single-deck bus: `livery` [lower, upper] colours and the destination display's text (none on a coach)
+export function makeBus(livery, dest) {
+  const b = new Builder(), gl = new Builder();
+  const L = 24, Wd = 5.2, lo = col(livery[0]), up = col(livery[1]), k = col(PAL.black), grey = col(PAL.lbg);
+  const bx = (x0, y0, z0, x1, y1, z1, cc, o) => b.box(x0 - L / 2, y0, z0 - Wd / 2, x1 - L / 2, y1, z1 - Wd / 2, cc, o);
+  const gb = (x0, y0, z0, x1, y1, z1) => gl.box(x0 - L / 2, y0, z0 - Wd / 2, x1 - L / 2, y1, z1 - Wd / 2, col(0xffffff), { chamfer: 0, gap: 0, jitter: false });
+  bx(0.6, 0.9, 0.6, L - 0.6, 1.5, Wd - 0.6, k);               // chassis
+  bx(0, 1.5, 0, L, 3.4, Wd, lo);                              // lower panels
+  // window pillars down each side, and the glass between them
+  for (let x = 0; x <= L - 3; x += 3.4) for (const z of [0, Wd - 0.35]) bx(x, 3.4, z, x + 0.5, 6.6, z + 0.35, up);
+  gb(0.5, 3.4, 0.05, L - 0.4, 6.6, 0.3); gb(0.5, 3.4, Wd - 0.3, L - 0.4, 6.6, Wd - 0.05);
+  bx(0, 6.6, 0, L, 7.6, Wd, up);                              // roof
+  bx(0, 3.4, 0.35, 0.4, 6.6, Wd - 0.35, up);                  // back
+  gb(-0.05, 4.4, 0.6, 0.05, 6.2, Wd - 0.6);                   // rear window
+  gb(L - 0.35, 2.2, 0.4, L - 0.05, 6.4, Wd - 0.4);            // windscreen, deep as on a low-floor bus
+  bx(L - 0.4, 6.4, 0.3, L, 7.6, Wd - 0.3, k);                 // destination display surround
+  bx(L, 1.4, 0, L + 0.25, 2.2, Wd, grey); bx(-0.25, 1.4, 0, 0, 2.2, Wd, grey);   // bumpers
+  bx(L, 1.7, 0.4, L + 0.12, 2.2, 1.2, col(0xfff7d6), { chamfer: 0.02 }); bx(L, 1.7, Wd - 1.2, L + 0.12, 2.2, Wd - 0.4, col(0xfff7d6), { chamfer: 0.02 });
+  bx(-0.1, 2.6, 0.4, 0.05, 3.2, 1.0, col(PAL.red), { chamfer: 0.02 }); bx(-0.1, 2.6, Wd - 1.0, 0.05, 3.2, Wd - 0.4, col(PAL.red), { chamfer: 0.02 });
+  bx(L - 4.2, 1.5, -0.05, L - 1.2, 6.4, 0.05, col(0x2b3a44));   // entrance doors, on the nearside (the left, -z)
+  const g = assemble(b, gl, [[4.4, -Wd / 2 + 0.4], [4.4, Wd / 2 - 0.4], [L - 4.6, -Wd / 2 + 0.4], [L - 4.6, Wd / 2 - 0.4]], L, Wd, 1.1);
+  if (dest) {
+    const cv = document.createElement('canvas'); cv.width = 512; cv.height = 64;
+    const x = cv.getContext('2d'); x.fillStyle = '#111'; x.fillRect(0, 0, 512, 64);
+    x.fillStyle = '#ffb020'; x.font = 'bold 44px system-ui, sans-serif'; x.textBaseline = 'middle';
+    const [num, ...rest] = dest.split(' ');
+    x.fillText(num, 14, 34); x.font = 'bold 34px system-ui, sans-serif'; x.fillText(rest.join(' '), 120, 34, 380);
+    const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(Wd - 1.0, 0.85), new THREE.MeshBasicMaterial({ map: tex }));
+    m.rotation.y = Math.PI / 2; m.position.set(L / 2 + 0.02, 7.0, 0); g.add(m);
+  }
+  return g;
+}
+
+// A motorbike and its rider
+export function makeMotorbike(hex) {
+  const b = new Builder(), gl = new Builder();
+  const L = 5, Wd = 1.6, c = col(hex), k = col(PAL.black), grey = col(PAL.lbg);
+  const bx = (x0, y0, z0, x1, y1, z1, cc, o) => b.box(x0 - L / 2, y0, z0 - Wd / 2, x1 - L / 2, y1, z1 - Wd / 2, cc, o);
+  bx(1.2, 1.0, 0.45, 3.8, 1.8, 1.15, grey);                    // engine
+  bx(1.0, 1.8, 0.3, 2.6, 2.3, 1.3, k);                         // seat
+  bx(2.6, 1.8, 0.25, 3.9, 2.7, 1.35, c);                       // tank
+  bx(3.8, 1.2, 0.5, 4.3, 3.4, 1.1, grey);                      // forks
+  bx(3.9, 3.0, -0.4, 4.2, 3.2, 2.0, k);                        // handlebars
+  bx(4.2, 2.6, 0.45, 4.6, 3.2, 1.15, col(0xfff7d6), { chamfer: 0.02 });   // headlamp
+  bx(0.2, 1.6, 0.3, 1.2, 2.0, 1.3, c);                         // tail
+  bx(0.05, 1.6, 0.55, 0.2, 1.9, 1.05, col(PAL.red), { chamfer: 0.02 });
+  const g = assemble(b, gl, [[0.9, 0], [L - 0.9, 0]], L, Wd, 0.9);
+  for (const w of g.userData.wheels) w.scale.set(0.9, 0.9, 0.35);
+  const rider = makeMinifig({ torso: PAL.black, legs: PAL.black, arms: PAL.black, helmet: hex, print: 'plain' });
+  rider.rotation.y = Math.PI / 2; rider.position.set(-0.7, 0.75, 0);
+  for (const l of rider.userData.legs) l.rotation.x = -1.35;
+  for (const a of rider.userData.arms) a.rotation.x = -1.1;
+  rider.traverse(m => { if (m.isMesh) m.castShadow = false; });
+  g.add(rider);
   return g;
 }
