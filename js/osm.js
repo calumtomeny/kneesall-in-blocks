@@ -831,6 +831,17 @@ export function buildKneesall(data) {
     // open fences (`style`), `h` metres to the top: "railings" (iron bars a stud apart under a top rail), "picket"
     // (pales, every other one a brick shorter) and "rails" (post and rail: a post every 2 m, a top rail and,
     // when tall enough, a middle one). Low growth the LIDAR saw on their line is the fence itself, so it goes.
+    // A "hedge" seen in Street View that the LIDAR missed or caught small (planted or grown since the survey): `h`
+    // metres tall, `width` metres thick (default 1.5), in `colours` (palette names) or this month's hedge colours.
+    if (w.style === 'hedge') {
+      const cols = w.colours ? w.colours.map(k => PAL[k]) : hedgeCols;
+      lineCells(pts, (w.width ?? 1.5) / mps / 2, (x, z) => {
+        if (G.has(x, z, 1 | 2 | 64 | 8) || !inBounds(x, z, 1)) return;
+        for (let y = 0; y < n; y++) if (!W.has(x, y, z)) W.set(x, y, z, hedgeBrick(cols, x, y, z), F_PLAIN);
+        const i = G.i(x, z); hedgeTop[i] = Math.max(hedgeTop[i], n);
+      });
+      continue;
+    }
     const open = w.style === 'railings' || w.style === 'picket' || w.style === 'rails', posts = new Set();
     if (w.style === 'rails') for (let s = 0, L = polylineLength(pts); s <= L; s += 2 / mps) { const p = pointAlong(pts, Math.min(s, L - 0.01)); posts.add(Math.floor(p.x) + ',' + Math.floor(p.z)); }
     lineCells(pts, 0.5, (x, z) => {
