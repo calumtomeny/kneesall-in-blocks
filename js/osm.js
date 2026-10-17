@@ -828,8 +828,23 @@ export function buildKneesall(data) {
     const piers = new Set();
     if (w.piers) for (let s = 0, L = polylineLength(pts); s <= L; s += w.piers / mps) { const p = pointAlong(pts, Math.min(s, L - 0.01)); piers.add(Math.floor(p.x) + ',' + Math.floor(p.z)); }
     const fence = w.fence ? Math.round(w.fence * KWALL) : 0, fenceC = PAL[w.fenceColour] ?? PAL.brown;
+    // open fences (`style`), `h` metres to the top: "railings" (iron bars a stud apart under a top rail), "picket"
+    // (pales, every other one a brick shorter) and "rails" (post and rail: a post every 2 m, a top rail and,
+    // when tall enough, a middle one). Low growth the LIDAR saw on their line is the fence itself, so it goes.
+    const open = w.style === 'railings' || w.style === 'picket' || w.style === 'rails', posts = new Set();
+    if (w.style === 'rails') for (let s = 0, L = polylineLength(pts); s <= L; s += 2 / mps) { const p = pointAlong(pts, Math.min(s, L - 0.01)); posts.add(Math.floor(p.x) + ',' + Math.floor(p.z)); }
     lineCells(pts, 0.5, (x, z) => {
       if (G.has(x, z, 1 | 2 | 64) || !inBounds(x, z, 1)) return;
+      if (open) {
+        const ht = hedgeTop[G.i(x, z)], odd = (x + z) & 1;
+        if (ht && ht <= n + 2) for (let y = 0; y < ht; y++) W.del(x, y, z);
+        const put = (y0, y1) => { for (let y = y0; y < y1; y++) W.set(x, y, z, c, y === y1 - 1 ? F_TILE : 0); };
+        if (w.style === 'railings') { if (odd) W.set(x, n - 1, z, c, F_TILE); else put(0, n); }
+        else if (w.style === 'picket') put(0, odd ? n - 1 : n);
+        else if (posts.has(x + ',' + z)) put(0, n);
+        else { W.set(x, n - 1, z, c, F_TILE); if (n >= 4) W.set(x, n - 3, z, c); }
+        return;
+      }
       const pier = piers.has(x + ',' + z), capY = n + (pier ? 1 : 0), ht = hedgeTop[G.i(x, z)];
       for (let y = 0; y < capY; y++) W.set(x, y, z, c);
       W.set(x, capY, z, cap, F_TILE);
