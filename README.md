@@ -6,8 +6,10 @@ A walkable WebGL model of Kneesall, Nottinghamshire, built out of toy-style bric
 python3 tools/serve.py        # then open http://localhost:8765
 ```
 
-On a phone or tablet, drag on the left half of the screen to walk and on the right half to look; buttons along the
-bottom stand in for the keys (time, month, weather, sound, map, view, fly, up and down). Touch screens start with a
+On a phone or tablet, drag on the left half of the screen to walk (a stick appears under your thumb; push past its
+ring to run) and on the right half to look. Round buttons on the right jump, or fly and then climb and descend; a row
+along the bottom stands in for the other keys (time, month, weather, sound, map, view, share, and full screen where
+the browser allows it). Touch screens start with a
 lower resolution, a smaller shadow map and no ambient occlusion, as phone graphics chips need it.
 
 <kbd>L</kbd> (or <b>Share</b> on a phone) copies a link to the view: where you stand and which way you look, and the

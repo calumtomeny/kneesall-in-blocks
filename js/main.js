@@ -1109,7 +1109,7 @@ addEventListener('keydown', (e) => {
 function command(code) {
   const e = { code };
   if (e.code === 'KeyV') { player.third = !player.third; showToast(player.third ? 'Third person' : 'First person'); }
-  if (e.code === 'KeyF') { player.fly = !player.fly; player.vy = 0; showToast(player.fly ? 'Fly mode (Space up, C down)' : 'Walking'); }
+  if (e.code === 'KeyF') { player.fly = !player.fly; player.vy = 0; showToast(player.fly ? (TOUCH ? 'Fly mode' : 'Fly mode (Space up, C down)') : 'Walking'); syncActions(); }
   if (e.code === 'KeyT') { timeIdx = (timeIdx + 1) % TIMES.length; applyTime(); }
   if (e.code === 'KeyR') { weatherIdx = (weatherIdx + 1) % WEATHERS.length; applyWeather(); }
   if (e.code === 'KeyN') { sound.start(); showToast(sound.toggle() ? 'Sound on' : 'Sound off'); }
@@ -1122,11 +1122,25 @@ function command(code) {
   if (e.code === 'KeyO') { aoOn = !aoOn; showToast(aoOn ? 'Ambient occlusion on' : 'Ambient occlusion off'); }
   if (e.code === 'KeyH') $('help').classList.toggle('hidden');
   if (e.code === 'KeyL') shareLink();
+  if (e.code === 'Fullscreen') {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
+  }
 }
-// touch buttons along the bottom: a tap runs a key's command; Up and Down are held like Space and C
-for (const b of document.querySelectorAll('#touchbar button')) {
+// the round touch buttons follow fly mode: Jump and Fly walking; Up, Down and Land flying
+function syncActions() {
+  const up = document.querySelector('#actions [data-key="Space"]'), down = document.querySelector('#actions [data-key="KeyC"]'), fly = document.querySelector('#actions [data-key="KeyF"]');
+  up.textContent = player.fly ? 'Up' : 'Jump';
+  down.classList.toggle('hidden', !player.fly);
+  fly.textContent = player.fly ? 'Land' : 'Fly'; fly.classList.toggle('on', player.fly);
+  if (!player.fly) keys.KeyC = false;
+}
+if (document.fullscreenEnabled) document.querySelector('#touchbar [data-key="Fullscreen"]').classList.remove('hidden');
+// touch buttons: a tap runs a key's command; Jump/Up and Down are held like Space and C
+for (const b of document.querySelectorAll('#touchbar button, #actions button')) {
   const code = b.dataset.key, hold = b.dataset.hold !== undefined;
-  if (code === 'KeyL') { b.addEventListener('click', () => { if (started) command(code); }); continue; }
+  // sharing and full screen need a real click; and a tap on the sideways-scrolling bar may be the start of a scroll
+  if (b.closest('#touchbar')) { b.addEventListener('click', () => { if (started) command(code); }); continue; }
   b.addEventListener('pointerdown', (e) => { e.preventDefault(); if (hold) keys[code] = true; else if (started) command(code); });
   for (const up of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(up, () => { if (hold) keys[code] = false; });
 }
@@ -1147,32 +1161,46 @@ renderer.domElement.addEventListener('click', () => { if (started && !locked) lo
 $('paused').addEventListener('click', () => { $('paused').classList.add('hidden'); lockPointer(); });
 function lockPointer() { try { const p = renderer.domElement.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* no pointer lock available */ } }
 
-// touch: left half = move stick, right half = look
-const touch = { move: null, look: null, mx: 0, mz: 0 };
+// touch: left half = move stick (drawn where the thumb comes down; pushed past its ring, you run), right half = look
+const touch = { move: null, look: null, mx: 0, mz: 0, run: false };
+const STICK_R = 50, STICK_RUN = 80;
+function moveStick(dx, dy) {
+  const d = Math.hypot(dx, dy), k = Math.min(d, STICK_RUN) / Math.max(d, 1e-6);
+  touch.mx = THREE.MathUtils.clamp(dx / STICK_R, -1, 1); touch.mz = THREE.MathUtils.clamp(dy / STICK_R, -1, 1);
+  touch.run = d >= STICK_RUN - 4;
+  $('knob').style.transform = `translate(${dx * k}px, ${dy * k}px)`;
+  $('stick').classList.toggle('run', touch.run);
+}
 renderer.domElement.addEventListener('touchstart', (e) => {
+  e.preventDefault();
   for (const t of e.changedTouches) {
-    if (t.clientX < innerWidth / 2 && !touch.move) touch.move = { id: t.identifier, x: t.clientX, y: t.clientY };
-    else if (!touch.look) touch.look = { id: t.identifier, x: t.clientX, y: t.clientY };
+    if (t.clientX < innerWidth / 2 && !touch.move) {
+      touch.move = { id: t.identifier, x: t.clientX, y: t.clientY };
+      const st = $('stick'); st.style.left = t.clientX + 'px'; st.style.top = t.clientY + 'px'; st.classList.remove('hidden'); moveStick(0, 0);
+    } else if (!touch.look) touch.look = { id: t.identifier, x: t.clientX, y: t.clientY };
   }
-}, { passive: true });
+}, { passive: false });
 renderer.domElement.addEventListener('touchmove', (e) => {
+  e.preventDefault();
   for (const t of e.changedTouches) {
-    if (touch.move && t.identifier === touch.move.id) { touch.mx = THREE.MathUtils.clamp((t.clientX - touch.move.x) / 60, -1, 1); touch.mz = THREE.MathUtils.clamp((t.clientY - touch.move.y) / 60, -1, 1); }
+    if (touch.move && t.identifier === touch.move.id) moveStick(t.clientX - touch.move.x, t.clientY - touch.move.y);
     if (touch.look && t.identifier === touch.look.id) { player.yaw -= (t.clientX - touch.look.x) * 0.005; player.pitch = THREE.MathUtils.clamp(player.pitch - (t.clientY - touch.look.y) * 0.005, -1.4, 1.4); touch.look.x = t.clientX; touch.look.y = t.clientY; }
   }
-}, { passive: true });
-renderer.domElement.addEventListener('touchend', (e) => {
+}, { passive: false });
+function touchEnd(e) {
   for (const t of e.changedTouches) {
-    if (touch.move && t.identifier === touch.move.id) { touch.move = null; touch.mx = touch.mz = 0; }
+    if (touch.move && t.identifier === touch.move.id) { touch.move = null; touch.mx = touch.mz = 0; touch.run = false; $('stick').classList.add('hidden'); }
     if (touch.look && t.identifier === touch.look.id) touch.look = null;
   }
-}, { passive: true });
+}
+renderer.domElement.addEventListener('touchend', touchEnd, { passive: true });
+renderer.domElement.addEventListener('touchcancel', touchEnd, { passive: true });
 
 // ------------------------------------------------------------------ update
 const fwd = new THREE.Vector3(), right = new THREE.Vector3();
 let moveSpeed = 0;
 function updatePlayer(dt) {
-  const run = keys.ShiftLeft || keys.ShiftRight;
+  const run = keys.ShiftLeft || keys.ShiftRight || touch.run;
   let ix = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + touch.mx;
   let iz = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) - touch.mz;
   const len = Math.hypot(ix, iz); if (len > 1) { ix /= len; iz /= len; }
@@ -1396,6 +1424,8 @@ function setupPost() {
   } catch (e) { console.warn('AO disabled', e); composer = null; }
 }
 addEventListener('resize', () => {
+  // a phone turned round mid-drag: let go of the stick rather than leave it walking
+  if (touch.move) touchEnd({ changedTouches: [{ identifier: touch.move.id }] });
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
   if (composer) composer.setSize(innerWidth, innerHeight);
@@ -1468,6 +1498,7 @@ $('start').addEventListener('click', () => {
   started = true; last = performance.now();
   sound.start();
   $('intro').classList.add('hidden');
+  syncActions();
   lockPointer();
   if (linkNote) showToast(linkNote);
 });
