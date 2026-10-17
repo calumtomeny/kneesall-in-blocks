@@ -198,25 +198,67 @@ function slopedPrism(b, poly3, depth, c) {
   }
 }
 
-// Road/pavement ribbon draped over terrain: every vertex sits at the ground height yAt(x, z) plus top, so the surface
-// follows slopes both along and across the road (a level slab across a sloping road would dig into the ground on one
-// side and stand proud of a crossing road on the other). The strip is offset from the centre line with mitred corners,
-// so it runs on without gaps round bends. With inner > 0 only side strips from inner to halfW are drawn (pavements),
-// on the sides listed: 'left' and 'right' of the polyline's direction.
-export function ribbonY(b, pts, halfW, yAt, top, c, depth = 1.2, inner = 0, sides = ['left', 'right']) {
+// A ribbon's centre line, densified, and at each point the mitred offset direction: the unit normal pointing right of
+// the direction of travel (x east, z south), scaled so the strip keeps its width round a bend
+function ribbonFrame(pts) {
   const P = densify(pts, 3).filter((p, i, a) => i === 0 || Math.hypot(p[0] - a[i - 1][0], p[1] - a[i - 1][1]) > 1e-3);
-  if (P.length < 2) return;
-  const Y = (x, z) => yAt(x, z) + top;
-  // unit normal of each segment, pointing right of the direction of travel (x east, z south)
   const segN = [];
   for (let i = 0; i + 1 < P.length; i++) { const dx = P[i + 1][0] - P[i][0], dz = P[i + 1][1] - P[i][1], L = Math.hypot(dx, dz); segN.push([-dz / L, dx / L]); }
-  // mitred offset direction at each point (scaled so the strip keeps its width round a bend)
   const N = P.map((_, i) => {
     const a = segN[Math.max(0, i - 1)], b2 = segN[Math.min(segN.length - 1, i)];
     let nx = a[0] + b2[0], nz = a[1] + b2[1]; const l = Math.hypot(nx, nz) || 1; nx /= l; nz /= l;
     const k = 1 / Math.max(0.35, nx * b2[0] + nz * b2[1]);
     return [nx * k, nz * k];
   });
+  return { P, N };
+}
+
+// The height of the top of the carriageways ribbonY draws for `strips` ({ pts, halfW, top }), for painting on: each
+// cross-section is flat from kerb to kerb, so on cambered ground the middle of a road can stand well above the ground
+// beneath it. Returns (x, z) => the highest top there (both diagonals of every quad, and the round joints), or null.
+export function ribbonSurface(strips, yAt) {
+  const C = 4, grid = new Map(), key = (i, j) => i * 100003 + j;
+  const add = (t) => {
+    const xs = t.map(p => p[0]), zs = t.map(p => p[2]);
+    for (let i = Math.floor(Math.min(...xs) / C); i <= Math.floor(Math.max(...xs) / C); i++)
+      for (let j = Math.floor(Math.min(...zs) / C); j <= Math.floor(Math.max(...zs) / C); j++) {
+        const k = key(i, j); if (!grid.has(k)) grid.set(k, []); grid.get(k).push(t);
+      }
+  };
+  for (const { pts, halfW, top } of strips) {
+    const { P, N } = ribbonFrame(pts); if (P.length < 2) continue;
+    const Y = (x, z) => [x, yAt(x, z) + top, z], at = (j, w) => Y(P[j][0] + N[j][0] * w, P[j][1] + N[j][1] * w);
+    for (let i = 0; i + 1 < P.length; i++) {
+      const [a, b, c, d] = [at(i, halfW), at(i + 1, halfW), at(i + 1, -halfW), at(i, -halfW)];
+      add([a, b, c]); add([a, c, d]); add([a, b, d]); add([b, c, d]);
+    }
+    for (const [x, z] of pts) {
+      const ring = disc(x, z, halfW).map(([px, pz]) => Y(px, pz)), ctr = Y(x, z);
+      ring.forEach((p, k) => add([ctr, p, ring[(k + 1) % ring.length]]));
+    }
+  }
+  return (x, z) => {
+    let best = null;
+    for (const [a, b, c] of grid.get(key(Math.floor(x / C), Math.floor(z / C))) ?? []) {
+      const d = (b[2] - c[2]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[2] - c[2]); if (Math.abs(d) < 1e-9) continue;
+      const u = ((b[2] - c[2]) * (x - c[0]) + (c[0] - b[0]) * (z - c[2])) / d, v = ((c[2] - a[2]) * (x - c[0]) + (a[0] - c[0]) * (z - c[2])) / d;
+      if (u < -1e-6 || v < -1e-6 || u + v > 1 + 1e-6) continue;
+      const h = u * a[1] + v * b[1] + (1 - u - v) * c[1];
+      if (best === null || h > best) best = h;
+    }
+    return best;
+  };
+}
+
+// Road/pavement ribbon draped over terrain: every vertex sits at the ground height yAt(x, z) plus top, so the surface
+// follows slopes both along and across the road (a level slab across a sloping road would dig into the ground on one
+// side and stand proud of a crossing road on the other). The strip is offset from the centre line with mitred corners,
+// so it runs on without gaps round bends. With inner > 0 only side strips from inner to halfW are drawn (pavements),
+// on the sides listed: 'left' and 'right' of the polyline's direction.
+export function ribbonY(b, pts, halfW, yAt, top, c, depth = 1.2, inner = 0, sides = ['left', 'right']) {
+  const { P, N } = ribbonFrame(pts);
+  if (P.length < 2) return;
+  const Y = (x, z) => yAt(x, z) + top;
   const bands = inner > 0 ? sides.map(s => (s === 'right' ? [inner, halfW] : [-halfW, -inner])) : [[-halfW, halfW]];
   for (let i = 0; i + 1 < P.length; i++) {
     for (const [w0, w1] of bands) {
@@ -237,12 +279,23 @@ export function ribbonY(b, pts, halfW, yAt, top, c, depth = 1.2, inner = 0, side
   }
 }
 
-export function dashesY(b, pts, len, gap, halfW, yAt, top, c) {
-  const total = polylineLength(pts);
-  for (let s = gap / 2; s + len < total; s += len + gap) {
-    const p = pointAlong(pts, s), q = pointAlong(pts, s + len);
-    const nx = -p.dz * halfW, nz = p.dx * halfW;
-    const yp = yAt(p.x, p.z) + top, yq = yAt(q.x, q.z) + top;
-    b.poly([[p.x + nx, yp, p.z + nz], [q.x + nx, yq, q.z + nz], [q.x - nx, yq, q.z - nz], [p.x - nx, yp, p.z - nz]], c, [p.x, yp - 1, p.z]);
-  }
+// A line painted `off` to the right of a polyline (negative: left) from arc length s0 to s1: dashes `mark` long with
+// `gap` between them, or unbroken (gap 0), as flat quads draped on the ground; `keep(x, z)` can leave pieces out
+export function paintY(b, pts, s0, s1, off, halfW, mark, gap, yAt, top, c, keep = () => true) {
+  const at = (s, w) => { const p = pointAlong(pts, s); return [p.x - p.dz * (off + w), p.z + p.dx * (off + w)]; };
+  const piece = (a, e) => {
+    const q = [at(a, halfW), at(e, halfW), at(e, -halfW), at(a, -halfW)];
+    if (!keep(q[0][0], q[0][1])) return;
+    const P = q.map(([x, z]) => [x, yAt(x, z) + top, z]);
+    b.poly(P, c, [P[0][0], P[0][1] - 1, P[0][2]]);
+  };
+  const run = (a, e) => { for (let t = a; t < e - 1e-6; t += 1) piece(t, Math.min(e, t + 1)); };
+  if (!gap) { run(s0, s1); return; }
+  for (let s = s0; s < s1; s += mark + gap) run(s, Math.min(s1, s + mark));
+}
+
+// arc length along a polyline to its point nearest (px, pz)
+export function arcAt(pts, px, pz) {
+  const n = distToPolyline(px, pz, pts);
+  return polylineLength(pts.slice(0, n.seg + 1)) + n.t * Math.hypot(pts[n.seg + 1][0] - pts[n.seg][0], pts[n.seg + 1][1] - pts[n.seg][1]);
 }

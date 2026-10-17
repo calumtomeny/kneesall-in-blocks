@@ -124,7 +124,13 @@ warnings, bend chevrons, the Rajdhaani's roadside board), each placed by a road 
 located from Street View bearings (a grey `column` with an outreach arm, or a `swan`-neck), at the kerb edge of the
 pavement or on the verge (`back`: at the back of the pavement), the arm reaching over the road. `giveWays` are the
 junctions where Street View shows Give Way markings: a double dashed line across the minor road `osm` at the edge
-of the road it joins, and the painted `triangle` where there is one.
+of the road it joins, and the painted `triangle` where there is one. `markings` are the other lines and words
+painted on the roads, from a Street View walk along every road: centre lines between two points on a road (`dashed`,
+a `warning` line, or `double` white lines with the `broken` side named), `edge` lines (dashed across junctions and
+drives), and `SLOW`, `30` roundels (on a red band at the Ollerton end) and deflection arrows in the lane they face. The
+A616 has double white lines most of the way through the village; Ossington Road and its link to Newark Road have a
+dashed centre line, which stops a little east of School Lane; the other roads have none. Paint sits on the road
+surface as drawn, which on cambered ground stands well above the ground beneath the middle of the road.
 `barriers` say what Street View shows of the gates OpenStreetMap maps on roads and paths (by node id): galvanised, timber
 or weathered, how many leaves, and the compass direction they stand open towards. Gates nobody has looked at are a
 closed plain timber gate; where OSM gives a `maxheight` there is a lattice height bar over the way.

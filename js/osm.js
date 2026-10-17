@@ -16,12 +16,12 @@ import { buildingFromPolygon, buildingFromRect, churchFromPolygon, houseStyle, S
 import { surveyedBuildings, surveyedChurch, surveyGrounds, surveyRoads, fittedBuilding } from './survey.js';
 import { KWALL } from './roofs.js';
 import { cropLook, foliage, hedgeColours } from './seasons.js';
-import { polyCells, pointInPoly, lineCells, distToPolyline, polylineLength, pointAlong, chainPolylines, ribbonY, dashesY, centroid, polyArea } from './geo.js';
+import { polyCells, pointInPoly, lineCells, distToPolyline, polylineLength, pointAlong, chainPolylines, ribbonY, ribbonSurface, paintY, arcAt, centroid, polyArea } from './geo.js';
 
 const ROAD = {
-  primary: { hw: 5, col: PAL.dbg, pave: true, dash: true },
+  primary: { hw: 5, col: PAL.dbg, pave: true },
   secondary: { hw: 4.5, col: PAL.dbg, pave: true },
-  tertiary: { hw: 4, col: PAL.dbg, pave: true, dash: true },   // Ossington Road has a dashed centre line (Street View)
+  tertiary: { hw: 4, col: PAL.dbg, pave: true },
   unclassified: { hw: 4, col: PAL.dbg, pave: true },
   residential: { hw: 4, col: PAL.dbg, pave: true },
   service: { hw: 2.5, col: PAL.dbg },
@@ -510,10 +510,12 @@ export function buildKneesall(data) {
     fan(c.fill, ROAD_TOP, col(c.col));
     kerb(c.arc, ROAD_TOP, col(c.col), c.fill[0]);
   }
-  for (const r of roads) if (r.spec.dash) dashesY(roadB, r.pts, 4, 5, 0.22, terrainY, ROAD_TOP + 0.02, col(PAL.white));
+  // paint goes on the road surface as drawn (see ribbonSurface), not on the ground under it
+  const roadSurf = ribbonSurface(roads.filter(r => !r.spec.cells).map(r => ({ pts: r.pts, halfW: r.spec.hw, top: ROAD_TOP + (r.spec.pave ? 0 : -0.01) })), terrainY);
+  const paintAt = (x, z) => roadSurf(x, z) ?? terrainY(x, z) + ROAD_TOP;
   // Give Way markings seen in Street View (survey.json "giveWays"): a double dashed line across the minor road `osm`
   // at the edge of the road it joins (the junction nearest `at`), and the painted triangle where one was seen
-  const mark = (pts, c) => { const y = terrainY(pts[0][0], pts[0][1]) + ROAD_TOP + 0.03; roadB.poly(pts.map(([x, z]) => [x, y, z]), c, [pts[0][0], y - 1, pts[0][1]]); };
+  const mark = (pts, c) => roadB.poly(pts.map(([x, z]) => [x, paintAt(x, z) + 0.04, z]), c, [pts[0][0], paintAt(pts[0][0], pts[0][1]) - 1, pts[0][1]]);
   for (const g of data.survey?.giveWays ?? []) {
     const r = roads.find(r => r.id === g.osm); if (!r) continue;
     const [jx, jz] = project(g.at), first = Math.hypot(r.pts[0][0] - jx, r.pts[0][1] - jz) < Math.hypot(r.pts.at(-1)[0] - jx, r.pts.at(-1)[1] - jz);
@@ -531,6 +533,112 @@ export function buildKneesall(data) {
       // long triangle in the approach lane (traffic keeps left), pointing at the line
       const side = hw / 2, b = s0 + 6.5;
       mark([at(b, side - 0.9), at(b, side + 0.9), at(s0 + 2.5, side)], white);
+    }
+  }
+  // Lines and words painted on the roads, as seen in Street View (survey.json "markings"): each on the road named
+  // `road` (its ways chained) or the way `osm`, between the points `from` and `to` (one left out: from the road's end
+  // nearer the other). `centre` lines: dashed, warning (long dashes, short gaps) or double (both solid, or the line
+  // on the `broken` side, left or right going from -> to, dashed); `edge` lines along both kerbs, dashed across the
+  // mouths of roads and drives; `text` and `roundel` in the lane of traffic heading `heading` (compass degrees);
+  // deflection `arrow`s, likewise.
+  const PAINT = { dashed: [4, 5], warning: [6, 3], broken: [2.5, 9.5] };   // mark and gap, metres (roughly, from Street View)
+  const roadText = [];
+  {
+    const white = col(PAL.white), yAt = paintAt, top = 0.03, keep = (x, z) => inBounds(x, z, -150);
+    const drape = (q, c) => roadB.poly(q.map(([x, z]) => [x, yAt(x, z) + top + 0.01, z]), c, [q[0][0], yAt(q[0][0], q[0][1]) - 1, q[0][1]]);
+    const named = new Map();
+    const target = (m) => {
+      if (m.osm) { const r = roads.find(r => r.id === m.osm); return r && { pts: r.pts, ways: [r], hw: r.spec.hw }; }
+      if (!named.has(m.road)) {
+        const ways = roads.filter(r => r.name === m.road && !r.spec.cells);
+        const pts = chainPolylines(ways.map(r => r.pts)).sort((a, b) => polylineLength(b) - polylineLength(a))[0];
+        named.set(m.road, pts && { pts, ways, hw: Math.max(...ways.map(r => r.spec.hw)) });
+      }
+      return named.get(m.road);
+    };
+    const span = (pts, m) => {
+      const L = polylineLength(pts), arc = (p) => arcAt(pts, ...project(p));
+      const a = m.from ? arc(m.from) : null, b = m.to ? arc(m.to) : null;
+      if (a === null && b === null) return { s0: 0, s1: L, flip: false };
+      const s0 = a ?? (b < L / 2 ? 0 : L), s1 = b ?? (a < L / 2 ? 0 : L);
+      return { s0: Math.min(s0, s1), s1: Math.max(s0, s1), flip: s0 > s1 };
+    };
+    // the lane of traffic heading compass `deg` at the point `at`: its centre and direction of travel
+    const lane = (t, at, deg) => {
+      const [x, z] = project(at), s = arcAt(t.pts, x, z), p = pointAlong(t.pts, s), F = deg * Math.PI / 180;
+      const k = p.dx * Math.sin(F) - p.dz * Math.cos(F) >= 0 ? 1 : -1, ux = p.dx * k, uz = p.dz * k;
+      return { s, ux, uz, x: p.x + uz * t.hw / 2, z: p.z - ux * t.hw / 2 };
+    };
+    for (const m of data.survey?.markings ?? []) {
+      const t = target(m); if (!t) continue;
+      const { pts, hw } = t;
+      if (m.kind === 'centre') {
+        let { s0, s1, flip } = span(pts, m);
+        // a minor road's line stops short of the wider road it meets
+        if (m.osm) for (const [end, sgn] of [[pts[0], 1], [pts.at(-1), -1]]) {
+          const major = carRoads.filter(o => o !== t.ways[0] && o.spec.hw > hw && distToPolyline(end[0], end[1], o.pts).d < 1).sort((a, b) => b.spec.hw - a.spec.hw)[0];
+          if (!major) continue;
+          if (sgn > 0 && s0 < 1) s0 = major.spec.hw + 1.5;
+          if (sgn < 0 && s1 > polylineLength(pts) - 1) s1 = polylineLength(pts) - major.spec.hw - 1.5;
+        }
+        const pat = (k) => PAINT[k].map(v => v / mps);
+        if (m.line === 'double') {
+          // two lines; `broken` names the side, going from -> to, whose line is dashed
+          for (const side of [-1, 1]) {
+            const dashed = m.broken && (m.broken === 'right' ? 1 : -1) * (flip ? -1 : 1) === side;
+            const [mk, gp] = dashed ? pat('broken') : [0, 0];
+            paintY(roadB, pts, s0, s1, side * 0.32, 0.12, mk, gp, yAt, top, white, keep);
+          }
+        } else {
+          const [mk, gp] = pat(m.line);
+          paintY(roadB, pts, s0, s1, 0, m.line === 'warning' ? 0.18 : 0.15, mk, gp, yAt, top, white, keep);
+        }
+      } else if (m.kind === 'edge') {
+        // where other roads, drives and tracks meet each side, as stretches of arc length
+        const mouths = { [-1]: [], [1]: [] };
+        for (const r of roads) {
+          if (t.ways.includes(r) || ['footway', 'path', 'bridleway'].includes(r.type)) continue;
+          r.pts.forEach((v, i) => {
+            if (distToPolyline(v[0], v[1], pts).d > 1) return;
+            const s = arcAt(pts, v[0], v[1]), p = pointAlong(pts, s);
+            for (const o of [r.pts[i - 1], r.pts[i + 1]]) {
+              if (!o) continue;
+              const dx = o[0] - v[0], dz = o[1] - v[1], L = Math.hypot(dx, dz) || 1;
+              const sin = Math.abs(p.dx * dz - p.dz * dx) / L, w = (r.spec.hw + (r.spec.cells ? 1.5 : KERB_R)) / Math.max(0.5, sin);
+              mouths[-p.dz * dx + p.dx * dz > 0 ? 1 : -1].push([s - w, s + w]);
+            }
+          });
+        }
+        const L = polylineLength(pts), d1 = 1 / mps;   // across a mouth: 1 m dashes, 1 m apart
+        for (const side of [-1, 1]) {
+          const off = side * (hw - 0.45);
+          let s = 0;
+          for (const [a, b] of mouths[side].sort((p, q) => p[0] - q[0])) {
+            if (b <= s) continue;
+            if (a > s) paintY(roadB, pts, s, a, off, 0.12, 0, 0, yAt, top, white, keep);
+            paintY(roadB, pts, Math.max(a, s), Math.min(b, L), off, 0.12, d1, d1, yAt, top, white, keep);
+            s = b;
+          }
+          if (s < L) paintY(roadB, pts, s, L, off, 0.12, 0, 0, yAt, top, white, keep);
+        }
+      } else if (m.kind === 'text' || m.kind === 'roundel') {
+        // drawn in main.js: a draped quad `w` across the lane and `l` along it (studs), read travelling (ux, uz)
+        const q = lane(t, m.at, m.heading);
+        const l = (m.kind === 'roundel' ? 4.5 : m.h ?? 1.6) / mps, w = (m.kind === 'roundel' ? 2.4 : 2.6) / mps;
+        roadText.push({ kind: m.kind, text: m.text, red: !!m.band, x: q.x, z: q.z, ux: q.ux, uz: q.uz, w, l, y: (x, z) => yAt(x, z) + top });
+        // red anti-skid band right across the road through the roundel
+        if (m.band) paintY(roadB, pts, q.s - 0.7 / mps, q.s + 0.7 / mps, 0, hw - 0.1, 0, 0, yAt, top - 0.005, col(0xa9483f));
+      } else if (m.kind === 'arrow') {
+        // a deflection arrow: a straight shaft, then a neck and head bent towards the nearside (metres, `c` to the left)
+        const q = lane(t, m.at, m.heading);
+        const P = (a, c) => [q.x + (q.ux * a + q.uz * c) / mps, q.z + (q.uz * a - q.ux * c) / mps];
+        const bar = (a0, c0, a1, c1, h) => {
+          const L = Math.hypot(a1 - a0, c1 - c0), na = -(c1 - c0) / L * h, nc = (a1 - a0) / L * h;
+          drape([P(a0 + na, c0 + nc), P(a1 + na, c1 + nc), P(a1 - na, c1 - nc), P(a0 - na, c0 - nc)], white);
+        };
+        bar(-3, 0, 1.3, 0, 0.1); bar(1.2, 0, 2, 0.45, 0.1);
+        drape([P(1.81, 0.78), P(2.87, 0.94), P(2.19, 0.12)], white);
+      }
     }
   }
   // (unknown) pavement cells outside the village are verge again
@@ -818,7 +926,7 @@ export function buildKneesall(data) {
   const roadY = (x, z) => terrainY(x, z) + ROAD_TOP;
   let minY = Infinity; for (let i = 0; i < G.base.length; i++) minY = Math.min(minY, G.base[i]);
   G.minY = minY;
-  return { G, W, buildings, roadB, labels, wires, attribution: data.attribution, newark, carPath, namedRoads, rightsOfWay, terrainY, roadY };
+  return { G, W, buildings, roadB, roadText, labels, wires, attribution: data.attribution, newark, carPath, namedRoads, rightsOfWay, terrainY, roadY };
 }
 
 // Merge ground cells into row runs. Tops go in the studded/smooth builders; terrace sides (where the

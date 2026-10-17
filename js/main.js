@@ -193,6 +193,7 @@ async function build() {
   for (const [, b] of gm.studded) { const m = new THREE.Mesh(b.toGeometry(), groundMat); m.receiveShadow = true; scene.add(m); }
   for (const [, b] of gm.smooth) { const m = new THREE.Mesh(b.toGeometry(), smoothMat); m.receiveShadow = true; scene.add(m); }
   { const m = new THREE.Mesh(K.roadB.toGeometry(), smoothMat); m.receiveShadow = true; scene.add(m); }
+  addRoadText(K, scene);
   // surrounding countryside so the baseplate never ends in a void
   {
     const S = 6000, g = new THREE.PlaneGeometry(S, S); g.rotateX(-Math.PI / 2);
@@ -415,6 +416,46 @@ function addSigns(world, parent) {
     m.position.set(s.x + 0.5 + fx, (s.postH ?? 4.5) - s.h / 2 + 0.3 + (world.baseAt ? world.baseAt(s.x, s.z) : 0), s.z + 0.5 + fz);
     m.rotation.y = s.face ?? 0;
     m.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    parent.add(m);
+  }
+}
+
+// words and speed roundels painted on the road (K.roadText): white paint on a canvas, on a quad draped over the road
+// `w` across the lane and `l` along it, upright for traffic travelling (ux, uz) — stretched, as road lettering is
+function addRoadText(K, parent) {
+  const paint = '#f4f4f0';
+  for (const t of K.roadText || []) {
+    const cv = document.createElement('canvas'); cv.width = 256; cv.height = Math.round(256 * t.l / t.w);
+    const x = cv.getContext('2d'), W = cv.width, H = cv.height;
+    x.fillStyle = paint; x.strokeStyle = paint; x.textAlign = 'center'; x.textBaseline = 'middle';
+    const word = (s, cx, cy, maxW, capH) => {
+      x.font = `bold ${capH / 0.72}px Arial, Helvetica, sans-serif`;
+      x.save(); x.translate(cx, cy); x.scale(Math.min(1, maxW / x.measureText(s).width), 1); x.fillText(s, 0, capH * 0.04); x.restore();
+    };
+    if (t.kind === 'roundel') {
+      const lw = W * 0.1;
+      x.beginPath(); x.ellipse(W / 2, H / 2, W / 2 - lw / 2, H / 2 - lw / 2, 0, 0, 2 * Math.PI);
+      if (t.red) { x.fillStyle = '#a9483f'; x.fill(); x.fillStyle = paint; }
+      x.lineWidth = lw; x.stroke();
+      word(t.text, W / 2, H / 2, W * 0.62, H * 0.48);
+    } else word(t.text, W / 2, H / 2, W * 0.96, H * 0.9);
+    const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+    // a grid draped on the road surface; uv (0, 0) is the near left corner for the reader
+    const NA = 4, NL = Math.max(2, Math.ceil(t.l / 1.5)), pos = [], uv = [], idx = [];
+    const rx = -t.uz, rz = t.ux;
+    for (let j = 0; j <= NL; j++) for (let i = 0; i <= NA; i++) {
+      const s = i / NA, v = j / NL, px = t.x + rx * (s - 0.5) * t.w + t.ux * (v - 0.5) * t.l, pz = t.z + rz * (s - 0.5) * t.w + t.uz * (v - 0.5) * t.l;
+      pos.push(px, t.y(px, pz) + 0.01, pz); uv.push(s, v);
+    }
+    for (let j = 0; j < NL; j++) for (let i = 0; i < NA; i++) {
+      const a = j * (NA + 1) + i, b = a + 1, c = a + NA + 2, d = a + NA + 1;
+      idx.push(a, b, c, a, c, d);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx); g.computeVertexNormals();
+    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: tex, alphaTest: 0.5, roughness: 0.4, polygonOffset: true, polygonOffsetFactor: -2 }));
+    m.receiveShadow = true;
     parent.add(m);
   }
 }
