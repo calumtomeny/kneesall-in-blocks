@@ -25,6 +25,7 @@ or a clock time such as `time=07:45`,
 | Pavements (which side of each road) | OpenStreetMap `sidewalk` tags; Street View for the roads without them (`roads` in `data/survey.json`) | ODbL / — |
 | Building outlines | Ordnance Survey OpenMap – Local (`SK_Building`, `SK_ImportantBuilding`) | OGL v3 — contains OS data © Crown copyright and database right |
 | Terrain, building and roof shapes (stud by stud), trees (evergreen or deciduous), hedgerows | Environment Agency LIDAR Composite DTM, First Return and Last Return DSM, 1 m | OGL v3 — © Environment Agency |
+| Drives, yards and car parks (tarmac or gravel) | Environment Agency National LIDAR Programme intensity, 2022, with the DTM and DSMs (`tools/hard_ground.py`) | OGL v3 — © Environment Agency |
 | Roof materials (slate, brown tile, pantile, sheeting, felt) | Environment Agency National LIDAR Programme intensity, 2022 | OGL v3 — © Environment Agency |
 | Old Hall, Old Hall Cottage, war memorial positions; the church's doors, windows and pinnacles | Historic England listings (via Wikipedia; the church's from the Southwell & Nottingham Church History Project) | — |
 | Building shapes as clean parts (every building) | Fitted to the LIDAR by `tools/fit_buildings.py` | as above |
@@ -113,6 +114,16 @@ The laser in an aerial LIDAR survey records how strongly each roof reflects it. 
 weakly, brown concrete tiles moderately and clay pantiles strongly, so the median intensity over a roof picks
 its colour (thresholds checked against aerial photographs of a dozen roofs). Low-pitched roofs are sheeting or
 felt instead. See `roofMaterial` in `js/buildings.js`.
+
+### Drives and yards
+
+The same laser intensity finds the hard standing round the houses. Tarmac is dark in the near infrared the laser
+uses, gravel middling and grass bright, so ground-level metres off the roads that return weakly are drives, yards and
+car parks: grown out from clearly dark ground, kept where a patch reaches a road or a building and lies mostly close
+to one, and called tarmac or gravel by how dark the patch is (`tools/hard_ground.py`; checked against aerial
+photographs at the school, the Hay Barn Cafe, the yard off School Lane and along Ossington Road). Tarmac lies at
+pavement height, gravel in tan plates. Concrete and light block paving return as brightly as grass, so they aren't
+found; yards measured by hand (`grounds` in `data/survey.json`) are drawn over these.
 
 ### Fitted buildings
 
@@ -208,7 +219,10 @@ closed plain timber gate; where OSM gives a `maxheight` there is a lattice heigh
    through a deciduous crown but stops near the top of a yew, holly or conifer. Evergreens are drawn dark and dense,
    the narrow ones as conifers)
 
-Steps 4–8 add to the JSON written by step 1, so run them in that order.
+8b. `python3 tools/hard_ground.py data/kneesall.json --dtm dtm.tif --dsm dsm.tif --dsm-last dsm_last.tif --intensity intensity_SK7060.tif --bbox 469880 363760 470880 364760`
+   (drives, yards and car parks; see "Drives and yards" above)
+
+Steps 4–8b add to the JSON written by step 1, so run them in that order.
 
 9. `python3 tools/traffic.py data/traffic.json --tra0307 tra0307-traffic-distribution-by-time-of-day.ods --gtfs itm_east_midlands_gtfs.zip`
    (the A616's traffic from the DfT road traffic API; TRA0307 from the DfT's road traffic statistics tables; the

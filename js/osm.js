@@ -339,6 +339,11 @@ export function buildKneesall(data) {
   const grounds = survey ? surveyGrounds(survey, data.bng) : [];
   const clearGround = new Uint8Array(G.n * G.n);
   for (const g of grounds) polyCells(g.poly, (x, z) => { const i = G.i(x, z); if (i >= 0) clearGround[i] = 1; });
+  // drives, yards and car parks the LIDAR shows (data.hard, from tools/hard_ground.py): runs [z, x0, x1] of studs
+  const hard = [];
+  for (const [surface, runs] of Object.entries(data.hard ?? {})) for (const [z, x0, x1] of runs) for (let x = x0; x <= x1; x++) {
+    hard.push([x, z, surface]); const i = G.i(x, z); if (i >= 0) clearGround[i] = 1;
+  }
 
   // ------------------------------------------------------------ LIDAR trees and hedgerows
   const hedgeMask = new Uint8Array(G.n * G.n);
@@ -461,7 +466,12 @@ export function buildKneesall(data) {
     }
   }
 
-  // ------------------------------------------------------------ surveyed yards and drives
+  // ------------------------------------------------------------ yards and drives: from the LIDAR, then as surveyed
+  for (const [x, z, surface] of hard) {
+    if (G.has(x, z, 1 | 2 | 8 | 64)) continue;
+    G.set(x, z, surface === 'tarmac' ? PAL.dbg : PAL.darkTan, 0, surface === 'gravel' ? 1 : 0);
+    if (surface === 'tarmac') G.top[G.i(x, z)] = terrainY(x + 0.5, z + 0.5) + PAVE_TOP;
+  }
   for (const g of grounds) {
     const c = { gravel: PAL.darkTan, tarmac: PAL.dbg, paving: PAL.lbg, grass: PAL.green }[g.surface] ?? PAL.darkTan;
     polyCells(g.poly, (x, z) => {
