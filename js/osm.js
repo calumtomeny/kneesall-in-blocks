@@ -69,6 +69,7 @@ export function buildKneesall(data) {
   const W = new World();
   const lat0 = data.origin[0], lon0 = data.origin[1], mps = data.metresPerStud;
   const project = ([lat, lon]) => [(lon - lon0) * Math.cos(lat0 * Math.PI / 180) * 111320 / mps, -(lat - lat0) * 110540 / mps];
+  const unproject = ([x, z]) => [lat0 - z * mps / 110540, lon0 + x * mps / (Math.cos(lat0 * Math.PI / 180) * 111320)];
   const inBounds = (x, z, m = 0) => Math.abs(x) < half - m && Math.abs(z) < half - m;
   const labels = [];
 
@@ -926,7 +927,7 @@ export function buildKneesall(data) {
   const roadY = (x, z) => terrainY(x, z) + ROAD_TOP;
   let minY = Infinity; for (let i = 0; i < G.base.length; i++) minY = Math.min(minY, G.base[i]);
   G.minY = minY;
-  return { G, W, buildings, roadB, roadText, labels, wires, attribution: data.attribution, newark, carPath, namedRoads, rightsOfWay, terrainY, roadY };
+  return { G, W, buildings, roadB, roadText, labels, wires, attribution: data.attribution, newark, carPath, namedRoads, rightsOfWay, terrainY, roadY, project, unproject };
 }
 
 // Merge ground cells into row runs. Tops go in the studded/smooth builders; terrace sides (where the

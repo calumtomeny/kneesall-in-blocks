@@ -56,11 +56,11 @@ const pmrem = new THREE.PMREMGenerator(renderer);
 let envRT = null;
 
 const TIMES = [
-  { name: 'Morning', hour: 8, elev: 16, az: 115, sunCol: 0xffe2b8, sunI: 2.6, hemiI: 0.45, fog: 0xd8dde4, exp: 0.8 },
-  { name: 'Midday', hour: 12.5, elev: 48, az: 170, sunCol: 0xfff6e8, sunI: 3.2, hemiI: 0.55, fog: 0xc9d9e8, exp: 0.78 },
-  { name: 'Late afternoon', hour: 16.5, elev: 24, az: 235, sunCol: 0xffe7c4, sunI: 2.9, hemiI: 0.5, fog: 0xd3dbe2, exp: 0.82 },
-  { name: 'Golden hour', hour: 19.5, elev: 5, az: 268, sunCol: 0xffad5c, sunI: 2.2, hemiI: 0.35, fog: 0xe6c7a8, exp: 0.95 },
-  { name: 'Now', now: true },
+  { key: 'morning', name: 'Morning', hour: 8, elev: 16, az: 115, sunCol: 0xffe2b8, sunI: 2.6, hemiI: 0.45, fog: 0xd8dde4, exp: 0.8 },
+  { key: 'midday', name: 'Midday', hour: 12.5, elev: 48, az: 170, sunCol: 0xfff6e8, sunI: 3.2, hemiI: 0.55, fog: 0xc9d9e8, exp: 0.78 },
+  { key: 'afternoon', name: 'Late afternoon', hour: 16.5, elev: 24, az: 235, sunCol: 0xffe7c4, sunI: 2.9, hemiI: 0.5, fog: 0xd3dbe2, exp: 0.82 },
+  { key: 'golden', name: 'Golden hour', hour: 19.5, elev: 5, az: 268, sunCol: 0xffad5c, sunI: 2.2, hemiI: 0.35, fog: 0xe6c7a8, exp: 0.95 },
+  { key: 'now', name: 'Now', now: true },
 ];
 let timeIdx = 2, timeAt = 0;
 const KNEESALL = [53.17, -0.95];   // latitude, longitude
@@ -237,6 +237,7 @@ async function build() {
   }
   buildMinimap();
   placePlayerAtStart();
+  openLink(new URLSearchParams(location.search));
   // back where you were before Y changed the month
   try {
     const r = JSON.parse(sessionStorage.getItem('kneesall-resume') ?? 'null');
@@ -577,10 +578,10 @@ function addClouds() {
 // every quarter of an hour: the clouds that show and how grey they are, how much the sun gets through, the haze, the
 // rain and the way the clouds drift. R steps through live, fair, overcast and rain; with no connection it is fair.
 const WEATHERS = [
-  { name: 'Live weather', live: true },
-  { name: 'Fair weather', cover: 0.3, rain: 0, snow: false, windFrom: 250, windSpeed: 4 },
-  { name: 'Overcast', cover: 0.95, rain: 0, snow: false, windFrom: 250, windSpeed: 5 },
-  { name: 'Rain', cover: 1, rain: 2.5, snow: false, windFrom: 230, windSpeed: 7 },
+  { key: 'live', name: 'Live weather', live: true },
+  { key: 'fair', name: 'Fair weather', cover: 0.3, rain: 0, snow: false, windFrom: 250, windSpeed: 4 },
+  { key: 'overcast', name: 'Overcast', cover: 0.95, rain: 0, snow: false, windFrom: 250, windSpeed: 5 },
+  { key: 'rain', name: 'Rain', cover: 1, rain: 2.5, snow: false, windFrom: 230, windSpeed: 7 },
 ];
 let weatherIdx = 0, live = null, liveAt = -Infinity;
 const weather = { ...WEATHERS[1] };
@@ -694,6 +695,64 @@ function placePlayerAtStart() {
   player.yaw = Math.atan2(-(ch.cx - best.x), -(ch.cz - best.z));
 }
 
+// ------------------------------------------------------------------ links to a view
+// ?at=lat,lon (WGS84, so a point copied from an online map works too) &look=heading,pitch (compass degrees; pitch up
+// is positive) &fly=metres above the ground &view=third &time=morning|midday|afternoon|golden|now
+// &weather=fair|overcast|rain &month=1..12. L copies one for where you are.
+const DEFAULT_TIME = timeIdx;
+function viewLink() {
+  const [lat, lon] = K.unproject([player.pos.x, player.pos.z]), q = new URLSearchParams();
+  q.set('at', lat.toFixed(6) + ',' + lon.toFixed(6));
+  const h = Math.round((-THREE.MathUtils.radToDeg(player.yaw) % 360 + 360) % 360), p = Math.round(THREE.MathUtils.radToDeg(player.pitch));
+  q.set('look', p ? h + ',' + p : String(h));
+  if (player.fly) q.set('fly', Math.max(0, (player.pos.y - groundH(player.pos.x, player.pos.z)) / VY_PER_M).toFixed(1));
+  if (player.third) q.set('view', 'third');
+  if (timeIdx !== DEFAULT_TIME) q.set('time', TIMES[timeIdx].key);
+  if (weatherIdx) q.set('weather', WEATHERS[weatherIdx].key);
+  if (new URLSearchParams(location.search).has('month')) q.set('month', MONTH);
+  return location.origin + location.pathname + '?' + q.toString().replace(/%2C/g, ',');
+}
+function shareLink() {
+  const url = viewLink();
+  history.replaceState(null, '', url);
+  const title = 'LEGO Kneesall: ' + lastPlace;
+  if (TOUCH && navigator.share) { navigator.share({ title, url }).catch(() => {}); return; }
+  const done = () => showToast('Link to this view copied');
+  // where the clipboard API is refused, the old way: copy from a selected text box
+  const fail = () => {
+    const t = document.createElement('textarea'); t.value = url; t.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(t); t.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch (e) { /* not allowed */ }
+    t.remove(); if (ok) done(); else showToast('Link to this view is in the address bar');
+  };
+  try { navigator.clipboard.writeText(url).then(done, fail); } catch (e) { fail(); }
+}
+function openLink(q) {
+  const t = TIMES.findIndex(x => x.key === q.get('time')); if (t >= 0) timeIdx = t;
+  const w = WEATHERS.findIndex(x => x.key === q.get('weather')); if (w >= 0) weatherIdx = w;
+  if (q.get('view') === 'third') player.third = true;
+  const at = (q.get('at') ?? '').split(',').map(Number);
+  if (at.length !== 2 || !at.every(Number.isFinite)) return;
+  const [x, z] = K.project(at);
+  if (x < BOUNDS.x0 + 2 || x > BOUNDS.x1 - 1 || z < BOUNDS.z0 + 2 || z > BOUNDS.z1 - 1) { linkNote = 'That place is outside the model'; return; }
+  const [h = NaN, p = 0] = (q.get('look') ?? '').split(',').map(Number);
+  if (Number.isFinite(h)) player.yaw = -THREE.MathUtils.degToRad(h);
+  if (Number.isFinite(p)) player.pitch = THREE.MathUtils.clamp(THREE.MathUtils.degToRad(p), -1.45, 1.45);
+  const alt = parseFloat(q.get('fly'));
+  if (q.has('fly')) {
+    player.fly = true; player.pos.set(x, groundH(x, z) + (Number.isFinite(alt) ? alt : 10) * VY_PER_M, z);
+    return;
+  }
+  // on foot: the nearest spot you can stand (a point from a map may be inside a house or a hedge)
+  for (let r = 0; r <= 12; r += 0.5) for (let k = 0, n = Math.max(1, Math.round(r * 6)); k < n; k++) {
+    const a = k / n * Math.PI * 2, px = x + Math.cos(a) * r, pz = z + Math.sin(a) * r;
+    if (blocked(px, pz, groundH(px, pz))) continue;
+    player.pos.set(px, supportH(px, pz, groundH(px, pz)), pz);
+    return;
+  }
+  player.fly = true; player.pos.set(x, groundH(x, z) + 10 * VY_PER_M, z);
+}
+let linkNote = '';
+
 function groundH(x, z) { return G.heightAt(x, z); }
 // solid(cx, layer, cz) in brick layers above base(cx, cz)
 function circleHits(solid, base, x, z, feet) {
@@ -760,10 +819,12 @@ function command(code) {
   if (e.code === 'KeyM') $('minimap').classList.toggle('hidden');
   if (e.code === 'KeyO') { aoOn = !aoOn; showToast(aoOn ? 'Ambient occlusion on' : 'Ambient occlusion off'); }
   if (e.code === 'KeyH') $('help').classList.toggle('hidden');
+  if (e.code === 'KeyL') shareLink();
 }
 // touch buttons along the bottom: a tap runs a key's command; Up and Down are held like Space and C
 for (const b of document.querySelectorAll('#touchbar button')) {
   const code = b.dataset.key, hold = b.dataset.hold !== undefined;
+  if (code === 'KeyL') { b.addEventListener('click', () => { if (started) command(code); }); continue; }
   b.addEventListener('pointerdown', (e) => { e.preventDefault(); if (hold) keys[code] = true; else if (started) command(code); });
   for (const up of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(up, () => { if (hold) keys[code] = false; });
 }
@@ -1091,6 +1152,7 @@ function loop(now) {
     scene.add(avatar);
     applyTime();
     fetchWeather();
+    if (!WEATHERS[weatherIdx].live) applyWeather(true);
     setupPost();
     status('Ready: ' + MONTHS[MONTH - 1] + (MONTH === new Date().getMonth() + 1 ? ' (this month)' : ''));
     $('start').disabled = false; $('start').textContent = 'Enter Kneesall';
@@ -1104,4 +1166,5 @@ $('start').addEventListener('click', () => {
   sound.start();
   $('intro').classList.add('hidden');
   lockPointer();
+  if (linkNote) showToast(linkNote);
 });

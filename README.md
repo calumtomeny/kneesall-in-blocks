@@ -10,6 +10,12 @@ On a phone or tablet, drag on the left half of the screen to walk and on the rig
 bottom stand in for the keys (time, month, weather, sound, map, view, fly, up and down). Touch screens start with a
 lower resolution, a smaller shadow map and no ambient occlusion, as phone graphics chips need it.
 
+<kbd>L</kbd> (or <b>Share</b> on a phone) copies a link to the view: where you stand and which way you look, and the
+time of day, weather and month if you changed them. The link is plain latitude and longitude, so a point copied from
+an online map works as well (`?at=53.1705,-0.9485&look=90` stands you on the nearest open ground there, looking
+east; `look=heading,pitch` in compass degrees, `fly=` metres up, `view=third`, `time=morning|midday|afternoon|golden|now`,
+`weather=fair|overcast|rain`, `month=1`…`12`).
+
 ## Data sources
 
 | What | Source | Licence |

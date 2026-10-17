@@ -62,18 +62,19 @@
       <span><kbd>Y</kbd></span><span>Next month: crops, leaves and hedges through the year</span>
       <span><kbd>R</kbd></span><span>Weather: live over Kneesall, fair, overcast or rain</span>
       <span><kbd>N</kbd></span><span>Sound on / off: traffic, birds, wind and rain, footsteps</span>
+      <span><kbd>L</kbd></span><span>Copy a link to this view (where you stand, which way you look)</span>
       <span><kbd>M</kbd> <kbd>O</kbd> <kbd>H</kbd></span><span>Map, ambient occlusion, help</span>
     </div>
-    <p class="touch-only">Drag on the left half of the screen to walk and on the right half to look about. The buttons along the bottom change the time of day, the month, the weather and the sound, show the map, switch to seeing your minifig and fly (<b>Up</b> and <b>Down</b> climb, or jump in walking).</p>
+    <p class="touch-only">Drag on the left half of the screen to walk and on the right half to look about. The buttons along the bottom change the time of day, the month, the weather and the sound, show the map, switch to seeing your minifig and fly (<b>Up</b> and <b>Down</b> climb, or jump in walking); <b>Share</b> sends a link to the view.</p>
     <button id="start" disabled>Loading…</button><span id="loading-text">Starting…</span>
   </div>
 </div>
 <div id="place">Kneesall</div>
 <div id="touchbar" class="touch-only">
-  <button data-key="KeyT">Time</button><button data-key="KeyY">Month</button><button data-key="KeyR">Weather</button><button data-key="KeyN">Sound</button><button data-key="KeyM">Map</button><button data-key="KeyV">View</button><button data-key="KeyF">Fly</button><button data-key="Space" data-hold>Up</button><button data-key="KeyC" data-hold>Down</button>
+  <button data-key="KeyT">Time</button><button data-key="KeyY">Month</button><button data-key="KeyR">Weather</button><button data-key="KeyN">Sound</button><button data-key="KeyM">Map</button><button data-key="KeyV">View</button><button data-key="KeyF">Fly</button><button data-key="Space" data-hold>Up</button><button data-key="KeyC" data-hold>Down</button><button data-key="KeyL">Share</button>
 </div>
 <canvas id="minimap" width="220" height="220"></canvas>
-<div id="help"><kbd>WASD</kbd> walk · <kbd>Shift</kbd> run · <kbd>Space</kbd> jump · <kbd>V</kbd> view · <kbd>F</kbd> fly · <kbd>T</kbd> time · <kbd>Y</kbd> month · <kbd>R</kbd> weather · <kbd>N</kbd> sound · <kbd>M</kbd> map · <kbd>H</kbd> hide</div>
+<div id="help"><kbd>WASD</kbd> walk · <kbd>Shift</kbd> run · <kbd>Space</kbd> jump · <kbd>V</kbd> view · <kbd>F</kbd> fly · <kbd>T</kbd> time · <kbd>Y</kbd> month · <kbd>R</kbd> weather · <kbd>N</kbd> sound · <kbd>M</kbd> map · <kbd>L</kbd> link · <kbd>H</kbd> hide</div>
 <div id="crosshair"></div>
 <div id="toast"></div>
 <div id="fps"></div>
