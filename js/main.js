@@ -60,8 +60,11 @@ const TIMES = [
   { key: 'midday', name: 'Midday', hour: 12.5, elev: 48, az: 170, sunCol: 0xfff6e8, sunI: 3.2, hemiI: 0.55, fog: 0xc9d9e8, exp: 0.78 },
   { key: 'afternoon', name: 'Late afternoon', hour: 16.5, elev: 24, az: 235, sunCol: 0xffe7c4, sunI: 2.9, hemiI: 0.5, fog: 0xd3dbe2, exp: 0.82 },
   { key: 'golden', name: 'Golden hour', hour: 19.5, elev: 5, az: 268, sunCol: 0xffad5c, sunI: 2.2, hemiI: 0.35, fog: 0xe6c7a8, exp: 0.95 },
+  { key: 'night', name: 'Night', hour: 22.5, night: true },
   { key: 'now', name: 'Now', now: true },
 ];
+// how night looks: the moon (or the sky's glow) instead of the sun
+const NIGHT = { sunCol: 0xa9bbdc, sunI: 0.5, hemiI: 0.09, fog: 0x0a1120, exp: 1.05 };
 let timeIdx = 2, timeAt = 0;
 const KNEESALL = [53.17, -0.95];   // latitude, longitude
 
@@ -78,29 +81,90 @@ function sunAt(date, [lat, lon]) {
   return { elev: el / r, az: (az / r + 360) % 360 };
 }
 
+// Where the moon is and how much of it is lit, from the same low-precision formulae (as in the suncalc library):
+// compass azimuth and elevation in degrees, the lit fraction, and whether it is waxing
+function moonAt(date, [lat, lon]) {
+  const r = Math.PI / 180, e = r * 23.4397, d = date / 86400000 - 10957.5;
+  const ra = (l, b) => Math.atan2(Math.sin(l) * Math.cos(e) - Math.tan(b) * Math.sin(e), Math.cos(l));
+  const dec = (l, b) => Math.asin(Math.sin(b) * Math.cos(e) + Math.cos(b) * Math.sin(e) * Math.sin(l));
+  const L = r * (218.316 + 13.176396 * d), M = r * (134.963 + 13.064993 * d), F = r * (93.272 + 13.22935 * d);
+  const ml = L + r * 6.289 * Math.sin(M), mb = r * 5.128 * Math.sin(F), dist = 385001 - 20905 * Math.cos(M);
+  const m = { ra: ra(ml, mb), dec: dec(ml, mb) };
+  const H = r * (280.16 + 360.9856235 * d) + r * lon - m.ra, p = r * lat;
+  const el = Math.asin(Math.sin(p) * Math.sin(m.dec) + Math.cos(p) * Math.cos(m.dec) * Math.cos(H));
+  const az = Math.atan2(Math.sin(H), Math.cos(H) * Math.sin(p) - Math.tan(m.dec) * Math.cos(p));   // from south, west positive
+  // the sun, for the phase
+  const sM = r * (357.5291 + 0.98560028 * d), sL = sM + r * (1.9148 * Math.sin(sM) + 0.02 * Math.sin(2 * sM) + 0.0003 * Math.sin(3 * sM)) + r * 102.9372 + Math.PI;
+  const s = { ra: ra(sL, 0), dec: dec(sL, 0) }, sd = 149598000;
+  const phi = Math.acos(Math.sin(s.dec) * Math.sin(m.dec) + Math.cos(s.dec) * Math.cos(m.dec) * Math.cos(s.ra - m.ra));
+  const inc = Math.atan2(sd * Math.sin(phi), dist - sd * Math.cos(phi));
+  const angle = Math.atan2(Math.cos(s.dec) * Math.sin(s.ra - m.ra), Math.sin(s.dec) * Math.cos(m.dec) - Math.cos(s.dec) * Math.sin(m.dec) * Math.cos(s.ra - m.ra));
+  return { elev: el / r, az: (az / r + 180 + 360) % 360, lit: (1 + Math.cos(inc)) / 2, waxing: angle < 0 };
+}
+
+// the moon in the sky: a disc drawn lit on the side the sun is (on the right as it waxes), kept far off round the camera
+const moonCanvas = document.createElement('canvas'); moonCanvas.width = moonCanvas.height = 128;
+const moonTex = new THREE.CanvasTexture(moonCanvas); moonTex.colorSpace = THREE.SRGBColorSpace;
+const moonMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: moonTex, transparent: true, fog: false, depthWrite: false, toneMapped: false }));
+moonMesh.scale.setScalar(24); moonMesh.renderOrder = -1; moonMesh.visible = false; scene.add(moonMesh);
+const moonDir = new THREE.Vector3();
+function drawMoon(m) {
+  const x = moonCanvas.getContext('2d'), R = 60, k = 1 - 2 * m.lit;   // k: where the terminator crosses, -1..1 of the radius
+  x.clearRect(0, 0, 128, 128); x.save(); x.translate(64, 64); if (!m.waxing) x.scale(-1, 1);
+  x.fillStyle = 'rgba(70,80,100,0.35)'; x.beginPath(); x.arc(0, 0, R, 0, Math.PI * 2); x.fill();   // earthshine
+  x.fillStyle = '#f4f1e4'; x.beginPath(); x.arc(0, 0, R, -Math.PI / 2, Math.PI / 2); x.ellipse(0, 0, Math.abs(k) * R, R, 0, Math.PI / 2, -Math.PI / 2, k < 0); x.fill();
+  x.restore(); moonTex.needsUpdate = true;
+}
+
 const sunDir = new THREE.Vector3();
+let night = 0, nightMoon = null;   // 0 by day, 1 at night (between in the twilight); the moon when it is dark
 function applyTime(quiet = false) {
-  let t = TIMES[timeIdx];
-  if (t.now) {
-    // the real sun, lit like the setting nearest its height; after dark it is held just above the horizon
-    const now = new Date(), s = sunAt(now, KNEESALL), look = TIMES.filter(x => !x.now).sort((a, b) => Math.abs(a.elev - s.elev) - Math.abs(b.elev - s.elev))[0];
-    const clock = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    t = { ...look, elev: Math.max(2, s.elev), az: s.az, name: s.elev < 2 ? `Now (${clock}): the sun has set, so dusk light` : `Now (${clock})` };
+  let t = TIMES[timeIdx], when = new Date(), skyElev = null;
+  night = 0;
+  if (t.now || t.at) {
+    // the real sun (now, or at a time of day a link gives), lit like the setting nearest its height; once it has set,
+    // the twilight deepens into night
+    if (t.at) when.setHours(Math.floor(t.hour), Math.round((t.hour % 1) * 60), 0, 0);
+    const s = sunAt(when, KNEESALL), look = TIMES.filter(x => x.elev != null).sort((a, b) => Math.abs(a.elev - s.elev) - Math.abs(b.elev - s.elev))[0];
+    const clock = when.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    night = THREE.MathUtils.clamp((1 - s.elev) / 10, 0, 1);
+    t = { ...look, elev: Math.max(2, s.elev), az: s.az, name: (t.now ? `Now (${clock})` : clock) + (night >= 1 ? ': night' : night > 0 ? ': twilight' : '') };
+    skyElev = s.elev;
     timeAt = performance.now();
+  } else if (t.night) {
+    when.setHours(Math.floor(t.hour), (t.hour % 1) * 60, 0, 0);
+    const s = sunAt(when, KNEESALL);
+    night = 1; t = { ...TIMES.find(x => x.key === 'golden'), name: t.name, az: s.az }; skyElev = Math.min(-12, s.elev);
   }
+  nightMoon = night > 0 ? moonAt(when, KNEESALL) : null;
+  if (nightMoon && night >= 1) t.name += nightMoon.elev > 0 ? `, the moon ${Math.round(nightMoon.lit * 100)}% lit` : ', no moon up';
   // compass azimuth (0 north, 90 east, 180 south) with x east and z south
-  const el = THREE.MathUtils.degToRad(t.elev), az = THREE.MathUtils.degToRad(t.az);
-  sunDir.set(Math.cos(el) * Math.sin(az), Math.sin(el), -Math.cos(el) * Math.cos(az));
-  su.sunPosition.value.copy(sunDir);
+  const dir = (elev, azim, v) => { const el = THREE.MathUtils.degToRad(elev), az = THREE.MathUtils.degToRad(azim); return v.set(Math.cos(el) * Math.sin(az), Math.sin(el), -Math.cos(el) * Math.cos(az)); };
+  dir(t.elev, t.az, sunDir);
+  // the sky drawn for where the sun really is (below the horizon after sunset)
+  su.sunPosition.value.copy(skyElev == null ? sunDir : dir(skyElev, t.az, new THREE.Vector3()));
   skyCam.update(renderer, skyScene);
   scene.background = skyCam.renderTarget.texture;
   if (envRT) envRT.dispose();
   envRT = pmrem.fromScene(skyScene, 0.02);
   scene.environment = envRT.texture;
   shadowsDirty = true;
-  scene.environmentIntensity = 0.55;
+  scene.environmentIntensity = 0.55 * (1 - 0.85 * night);
+  scene.backgroundIntensity = 1 - 0.7 * night;   // the sky drawn for a sun far below the horizon is still too pale
   sun.color.set(t.sunCol); sun.intensity = t.sunI; hemi.intensity = t.hemiI;
   scene.fog.color.set(t.fog); renderer.toneMappingExposure = t.exp;
+  if (night > 0) {
+    // after sunset: the light fades to the moon's (from where it is, as bright as it is full), or to the sky's glow
+    const m = nightMoon, up = m.elev > 2;
+    if (up) dir(m.elev, m.az, sunDir);
+    const moonI = up ? NIGHT.sunI * (0.15 + 0.85 * m.lit) * Math.min(1, m.elev / 20) : 0.02;
+    sun.color.lerp(new THREE.Color(NIGHT.sunCol), night); sun.intensity += (moonI - sun.intensity) * night;
+    hemi.intensity += (NIGHT.hemiI - hemi.intensity) * night;
+    scene.fog.color.lerp(new THREE.Color(NIGHT.fog), Math.min(1, night * 2.5));   // the haze darkens ahead of the light, as the sky does renderer.toneMappingExposure += (NIGHT.exp - renderer.toneMappingExposure) * night;
+    moonMesh.visible = m.elev > -1; dir(m.elev, m.az, moonDir); drawMoon(m);
+  } else moonMesh.visible = false;
+  cloudMat.color.setScalar((1 - 0.5 * Math.max(0, weather.cover - 0.5) - (weather.rain > 0 ? 0.15 : 0)) * (1 - 0.85 * night));
+  lampsOn = night >= 0.3; headlightsOn = night >= 0.2;
   // cloud cover takes the sun's strength (and so the shadows) away and lets the sky light it instead; rain and fog
   // close the view in
   const thick = Math.max(0, weather.cover - 0.4) / 0.6, wet = weather.rain > 0.05;
@@ -125,6 +189,46 @@ groundMat.onBeforeCompile = (sh) => {
 };
 const smoothMat = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.4, clearcoat: 0.15, clearcoatRoughness: 0.3 });
 const glassMat = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.04, metalness: 0, transparent: true, opacity: 0.62, envMapIntensity: 1.6, depthWrite: false, specularIntensity: 1 });
+
+// After dark the street lights (and the traffic's headlights) light what is round them. three.js lights would cost
+// every material a pass per lamp, so the ground, roads, bricks and studs instead add up to LAMPS small lights
+// themselves: lampPos (xyz, reach), lampDir (xyz, and the cosine of the cone's edge, 0 for all round), lampCol.
+const LAMPS = 24;
+const lampU = { lampN: { value: 0 }, lampPos: { value: Array.from({ length: LAMPS }, () => new THREE.Vector4()) },
+  lampDir: { value: Array.from({ length: LAMPS }, () => new THREE.Vector4()) }, lampCol: { value: Array.from({ length: LAMPS }, () => new THREE.Vector3()) } };
+let lampsOn = false, headlightsOn = false;
+window.__dbg.lampU = lampU;
+function withLamps(mat, key) {
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = (sh, r) => {
+    if (prev) prev(sh, r);
+    Object.assign(sh.uniforms, lampU);
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vLampW;')
+      .replace('#include <project_vertex>', `#include <project_vertex>
+        vec4 lampW4 = vec4(transformed, 1.0);
+        #ifdef USE_INSTANCING
+          lampW4 = instanceMatrix * lampW4;
+        #endif
+        vLampW = (modelMatrix * lampW4).xyz;`);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+        #define LAMPS ${LAMPS}
+        uniform int lampN; uniform vec4 lampPos[LAMPS]; uniform vec4 lampDir[LAMPS]; uniform vec3 lampCol[LAMPS];
+        varying vec3 vLampW;`)
+      .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+        for (int i = 0; i < LAMPS; i++) {
+          if (i >= lampN) break;
+          vec3 d = lampPos[i].xyz - vLampW; float dist = length(d);
+          float att = clamp(1.0 - dist / lampPos[i].w, 0.0, 1.0);
+          if (att <= 0.0) continue;
+          vec3 L = d / max(dist, 1e-3);
+          float cone = lampDir[i].w > 0.0 ? smoothstep(lampDir[i].w, lampDir[i].w + 0.15, dot(-L, lampDir[i].xyz)) : 1.0;
+          float ndl = max(dot(normal, normalize((viewMatrix * vec4(L, 0.0)).xyz)), 0.0);
+          reflectedLight.directDiffuse += BRDF_Lambert(diffuseColor.rgb) * lampCol[i] * (ndl * att * att * cone);
+        }`);
+  };
+  mat.customProgramCacheKey = () => 'lamps-' + key;
+}
+withLamps(groundMat, 'ground'); withLamps(brickMat, 'brick'); withLamps(studMat, 'stud'); withLamps(smoothMat, 'smooth');
 
 // ------------------------------------------------------------------ HUD helpers
 let toastTimer = 0;
@@ -238,6 +342,7 @@ async function build() {
     setupBuses();
   }
   buildMinimap();
+  setupLamps();
   placePlayerAtStart();
   openLink(new URLSearchParams(location.search));
   // back where you were before Y changed the month
@@ -490,6 +595,60 @@ function addClocks(world, parent) {
     hands.add(hr, mn); parent.add(hands);
     dynamic.clock = { hr, mn };
   }
+}
+
+// ------------------------------------------------------------------ lights after dark
+// The street lights located in Street View come on when the sun is two degrees below the horizon, as their
+// photocells would; the traffic has its headlights on from just after sunset. Each lantern glows, and lights the
+// road, pavement and walls round it (see withLamps); the nearest vehicles' headlights light the road ahead.
+const glowTex = (() => {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  const x = cv.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.2, 'rgba(255,255,255,0.55)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(cv);
+})();
+const glowMats = new Map();
+function glow(hex, size) {
+  if (!glowMats.has(hex)) glowMats.set(hex, new THREE.SpriteMaterial({ map: glowTex, color: hex, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+  const g = new THREE.Sprite(glowMats.get(hex)); g.scale.setScalar(size); g.visible = false; return g;
+}
+const LAMP_COL = new THREE.Vector3(1, 0.9, 0.75).multiplyScalar(6), HEAD_COL = new THREE.Vector3(1, 0.95, 0.85).multiplyScalar(12);
+const lamps = [];
+function setupLamps() {
+  for (const l of W.lamps ?? []) {
+    const y = W.baseAt(l.gx, l.gz) + l.h, g = glow(0xffe0b0, l.style === 'swan' ? 3 : 3.6);
+    g.position.set(l.x, y - 0.3, l.z); scene.add(g);
+    lamps.push({ x: l.x, y: y - 0.6, z: l.z, g });
+  }
+}
+// a vehicle's lamps (actors.js gives where): white at the front, red at the back
+function vehicleGlows(v) {
+  const u = v.obj.userData; if (!u.lamps || u.glows) return;
+  u.glows = [];
+  for (const [x, y, z] of u.lamps.head) { const g = glow(0xfff4dc, v.bike ? 1.6 : 2.2); g.position.set(x, y, z); v.obj.add(g); u.glows.push(g); }
+  for (const [x, y, z] of u.lamps.tail) { const g = glow(0xff2a1a, 1.2); g.position.set(x, y, z); (u.trailer ?? v.obj).add(g); u.glows.push(g); }
+}
+const lampTmp = new THREE.Vector3();
+function updateLamps() {
+  let n = 0;
+  const put = (x, y, z, reach, dx, dy, dz, cone, c) => { lampU.lampPos.value[n].set(x, y, z, reach); lampU.lampDir.value[n].set(dx, dy, dz, cone); lampU.lampCol.value[n].copy(c); n++; };
+  const cam = camera.position;
+  if (lampsOn) for (const l of lamps) if (n < LAMPS && Math.hypot(l.x - cam.x, l.z - cam.z) < 250) put(l.x, l.y, l.z, 34, 0, -1, 0, 0.15, LAMP_COL);
+  for (const l of lamps) l.g.visible = lampsOn;
+  if (headlightsOn) {
+    const near = traffic.cars.filter(c => Math.hypot(c.obj.position.x - cam.x, c.obj.position.z - cam.z) < 150)
+      .sort((a, b) => a.obj.position.distanceToSquared(cam) - b.obj.position.distanceToSquared(cam)).slice(0, 8);
+    for (const c of near) {
+      if (n >= LAMPS) break;
+      const o = c.obj, yaw = o.rotation.y, fx = Math.cos(yaw), fz = -Math.sin(yaw);
+      lampTmp.set(o.userData.L / 2 + 0.5, 2.4, 0).applyMatrix4(o.matrixWorld);
+      put(lampTmp.x, lampTmp.y, lampTmp.z, c.bike ? 32 : 44, fx * 0.97, -0.24, fz * 0.97, 0.8, HEAD_COL);
+    }
+  }
+  for (const c of traffic.cars) { if (headlightsOn) vehicleGlows(c); for (const g of c.obj.userData.glows ?? []) g.visible = headlightsOn; }
+  lampU.lampN.value = n;
+  if (moonMesh.visible) { moonMesh.position.copy(camera.position).addScaledVector(moonDir, 900); moonMesh.lookAt(camera.position); }
 }
 
 // ------------------------------------------------------------------ the model's clock
@@ -749,7 +908,6 @@ function applyWeather(quiet = false) {
   // clouds: a few on a clear day, the whole sky when it is overcast, greyer as it closes in and when it rains
   const n = Math.round(3 + weather.cover * (dynamic.clouds.length - 3));
   dynamic.clouds.forEach((c, i) => { c.visible = i < n; c.scale.set(1 + 1.6 * weather.cover, 1 + 0.5 * weather.cover, 1 + 1.6 * weather.cover); });
-  cloudMat.color.setScalar(1 - 0.5 * Math.max(0, weather.cover - 0.5) - (weather.rain > 0 ? 0.15 : 0));
   // the sky itself hazes over
   su.turbidity.value = 4 + 12 * weather.cover; su.rayleigh.value = 1.2 * (1 - 0.6 * weather.cover); su.mieCoefficient.value = 0.004 + 0.02 * weather.cover;
   applyTime(true);
@@ -836,7 +994,7 @@ function placePlayerAtStart() {
 
 // ------------------------------------------------------------------ links to a view
 // ?at=lat,lon (WGS84, so a point copied from an online map works too) &look=heading,pitch (compass degrees; pitch up
-// is positive) &fly=metres above the ground &view=third &time=morning|midday|afternoon|golden|now
+// is positive) &fly=metres above the ground &view=third &time=morning|midday|afternoon|golden|night|now|HH:MM
 // &weather=fair|overcast|rain &month=1..12. L copies one for where you are.
 const DEFAULT_TIME = timeIdx;
 function viewLink() {
@@ -866,7 +1024,10 @@ function shareLink() {
   try { navigator.clipboard.writeText(url).then(done, fail); } catch (e) { fail(); }
 }
 function openLink(q) {
-  const t = TIMES.findIndex(x => x.key === q.get('time')); if (t >= 0) timeIdx = t;
+  // a time of day by name, or a clock time (?time=07:48), which joins the times T steps through
+  const tq = q.get('time') ?? '', hm = tq.match(/^(\d{1,2}):(\d\d)$/);
+  if (hm && +hm[1] < 24 && +hm[2] < 60) TIMES.splice(TIMES.length - 1, 0, { key: hm[1].padStart(2, '0') + ':' + hm[2], hour: +hm[1] + hm[2] / 60, at: true });
+  const t = TIMES.findIndex(x => x.key === (hm ? hm[1].padStart(2, '0') + ':' + hm[2] : tq)); if (t >= 0) timeIdx = t;
   const w = WEATHERS.findIndex(x => x.key === q.get('weather')); if (w >= 0) weatherIdx = w;
   if (q.get('view') === 'third') player.third = true;
   const at = (q.get('at') ?? '').split(',').map(Number);
@@ -1077,6 +1238,7 @@ function updateWorld(dt, t) {
     dynamic.clock.hr.rotation.z = -h / 12 * Math.PI * 2; dynamic.clock.mn.rotation.z = -m / 60 * Math.PI * 2;
   }
   updateTraffic(dt, t);
+  updateLamps();
   updateShadows(t);
   // brick level of detail: bevelled bricks near the camera, plain faces further off
   for (const c of brickChunks) {

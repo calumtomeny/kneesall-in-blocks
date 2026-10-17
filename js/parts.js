@@ -277,6 +277,9 @@ export function bench(W, x, z, axis = 'x') {
 // or a swan-neck bracket with a hanging lantern ('swan'); `arm` [dx, dz] points over the road
 export function streetLight(W, x, z, arm, style = 'column') {
   if (!W.has(x, 0, z)) W.set(x, 0, z, PAL.lbg, F_HIDDEN);
+  // where the lantern is (above the ground at the column), for lighting it after dark
+  const out = style === 'swan' ? 2.3 : 1.55;
+  (W.lamps ??= []).push({ x: x + 0.5 + arm[0] * out, z: z + 0.5 + arm[1] * out, h: style === 'swan' ? 12.1 : 14.8, gx: x, gz: z, style });
   W.extras.push(({ at, glass }) => {
     const b = at(x, z), c = col(PAL.lbg), cx = x + 0.5, cz = z + 0.5, [ax, az] = arm;
     const H = style === 'swan' ? 13 : 15, turn = Math.atan2(-az, ax);

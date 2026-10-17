@@ -165,8 +165,12 @@ export function makeCar(bodyHex, kind = 'hatch') {
   gb(wind, 2.8, 0.4, wind + 0.6, 4.4, Wd - 0.4);            // windscreen
   gb(back - 0.3, 2.8, 0.4, back, 4.4, Wd - 0.4);            // rear window
   gb(back + 0.4, 2.8, 0.1, wind - 0.4, 4.4, 0.3); gb(back + 0.4, 2.8, Wd - 0.3, wind - 0.4, 4.4, Wd - 0.1);
-  return assemble(b, gl, [[2.2, -Wd / 2 + 0.3], [2.2, Wd / 2 - 0.3], [L - 2.2, -Wd / 2 + 0.3], [L - 2.2, Wd / 2 - 0.3]], L, Wd, 1);
+  const g = assemble(b, gl, [[2.2, -Wd / 2 + 0.3], [2.2, Wd / 2 - 0.3], [L - 2.2, -Wd / 2 + 0.3], [L - 2.2, Wd / 2 - 0.3]], L, Wd, 1);
+  g.userData.lamps = pairs(L / 2 + 0.15, 1.9, -L / 2 - 0.15, 1.9, Wd / 2 - 0.85);
+  return g;
 }
+// head and tail lamps in pairs either side, for lighting up after dark (main.js adds the glows)
+const pairs = (hx, hy, tx, ty, z) => ({ head: [[hx, hy, -z], [hx, hy, z]], tail: [[tx, ty, -z], [tx, ty, z]] });
 
 // A cement mixer lorry: white cab at +x, a striped drum that turns as it drives
 export function makeMixer() {
@@ -214,6 +218,7 @@ export function makeMixer() {
   const tilt = new THREE.Group(); tilt.position.set(7.2 - L / 2, 4.9, 0); tilt.rotation.z = -0.2;
   tilt.add(drum); g.add(tilt);
   g.userData.drum = drum;
+  g.userData.lamps = pairs(L / 2 + 0.2, 2.7, -L / 2 - 0.15, 2.55, Wd / 2 - 0.95);
   return g;
 }
 
@@ -250,6 +255,7 @@ export function makeLorry(kind, cabHex, bodyHex) {
     if (kind === 'rigid3') wheels.push([5.4, -Wd / 2 + 0.4], [5.4, Wd / 2 - 0.4]);
   }
   const g = assemble(b, gl, wheels, L, Wd, 1.15);
+  g.userData.lamps = pairs(L / 2 + 0.2, 2.7, -L / 2 - 0.15, 2.55, Wd / 2 - 0.95);
   if (!artic) return g;
   // the trailer, pivoting on the fifth wheel
   const T = 25, tb = new Builder(), body = col(bodyHex), side = col(PAL.lbg);
@@ -269,6 +275,7 @@ export function makeLorry(kind, cabHex, bodyHex) {
   }
   g.add(trailer);
   Object.assign(g.userData, { trailer, pivot: L / 2 - 2.3, axle: T - 4.4, back: T - 2.3 });
+  g.userData.lamps.tail = [[-T - 0.2, 2.25, -Wd / 2 + 0.95], [-T - 0.2, 2.25, Wd / 2 - 0.95]];   // in the trailer's frame
   return g;
 }
 
@@ -293,6 +300,7 @@ export function makeBus(livery, dest) {
   bx(-0.1, 2.6, 0.4, 0.05, 3.2, 1.0, col(PAL.red), { chamfer: 0.02 }); bx(-0.1, 2.6, Wd - 1.0, 0.05, 3.2, Wd - 0.4, col(PAL.red), { chamfer: 0.02 });
   bx(L - 4.2, 1.5, -0.05, L - 1.2, 6.4, 0.05, col(0x2b3a44));   // entrance doors, on the nearside (the left, -z)
   const g = assemble(b, gl, [[4.4, -Wd / 2 + 0.4], [4.4, Wd / 2 - 0.4], [L - 4.6, -Wd / 2 + 0.4], [L - 4.6, Wd / 2 - 0.4]], L, Wd, 1.1);
+  g.userData.lamps = pairs(L / 2 + 0.2, 1.95, -L / 2 - 0.15, 2.9, Wd / 2 - 0.8);
   if (dest) {
     const cv = document.createElement('canvas'); cv.width = 512; cv.height = 64;
     const x = cv.getContext('2d'); x.fillStyle = '#111'; x.fillRect(0, 0, 512, 64);
@@ -327,5 +335,6 @@ export function makeMotorbike(hex) {
   for (const a of rider.userData.arms) a.rotation.x = -1.1;
   rider.traverse(m => { if (m.isMesh) m.castShadow = false; });
   g.add(rider);
+  g.userData.lamps = { head: [[2.2, 2.9, 0]], tail: [[-2.45, 1.75, 0]] };
   return g;
 }

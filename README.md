@@ -13,7 +13,8 @@ lower resolution, a smaller shadow map and no ambient occlusion, as phone graphi
 <kbd>L</kbd> (or <b>Share</b> on a phone) copies a link to the view: where you stand and which way you look, and the
 time of day, weather and month if you changed them. The link is plain latitude and longitude, so a point copied from
 an online map works as well (`?at=53.1705,-0.9485&look=90` stands you on the nearest open ground there, looking
-east; `look=heading,pitch` in compass degrees, `fly=` metres up, `view=third`, `time=morning|midday|afternoon|golden|now`,
+east; `look=heading,pitch` in compass degrees, `fly=` metres up, `view=third`, `time=morning|midday|afternoon|golden|night|now`
+or a clock time such as `time=07:45`,
 `weather=fair|overcast|rain`, `month=1`…`12`).
 
 ## Data sources
@@ -79,6 +80,16 @@ Cloud cover sets how many clouds there are, how big and grey, how much the sun (
 how hazy the distance is; rain and snow fall round you and close the view in; the clouds drift with the wind.
 <kbd>R</kbd> steps through live, fair, overcast and rain. Without a connection it stays fair. Weather data by
 Open-Meteo.com, CC BY 4.0.
+
+### Night
+
+<kbd>T</kbd> steps through the times of day, Night (half past ten) among them, and "Now", which follows the real sun
+and deepens through the twilight into night after sunset. The moon is where it really is, lit as much as it really
+is (the same low-precision formulae as the sun), and its light falls from there; with no moon up the village is lit
+only by the sky's glow. The street lights located in Street View come on two degrees after sunset and light the
+road, pavement and walls round them, and the traffic drives with its headlights on. A link can also give a clock
+time (`?time=21:30`), shown with the sun and moon where they are at that time today. House windows stay dark: nobody
+knows which would be lit.
 
 ### Sound
 
