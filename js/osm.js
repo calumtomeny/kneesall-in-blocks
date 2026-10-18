@@ -380,11 +380,30 @@ export function buildKneesall(data) {
     const notTrees = (data.survey?.notTrees ?? []).map(n => project(n.at));
     // and trees the LIDAR doesn't have, seen since (survey.json "trees")
     const handTrees = (data.survey?.trees ?? []).map(t => { const [x, z] = project(t.at); return { ...t, x, z }; });
+    // The tree finder's radius often falls short of the crown (a broad yew came out 4 m across a 10 m canopy), and
+    // the canopy left over was drawn as hedge round the tree. A crown is drawn out to where its canopy measures:
+    // along 16 bearings from the trunk, as far as the LIDAR stays over 40% of the tree's height, stopping halfway
+    // to the next tree; the median of those reaches.
+    const crownReach = (t) => {
+      const thr = Math.max(2.5, t.h * 0.4), near = data.trees.filter(o => o !== t && Math.abs(o.x - t.x) < 30 && Math.abs(o.z - t.z) < 30);
+      const reach = [];
+      for (let a = 0; a < 16; a++) {
+        const c = Math.cos(a * Math.PI / 8), s = Math.sin(a * Math.PI / 8);
+        let k = 0;
+        for (let d = 0.5; d <= 10; d += 0.5) {
+          const px = t.x + c * d, pz = t.z + s * d;
+          if (ndsm(Math.floor(px), Math.floor(pz)) < thr || near.some(o => Math.hypot(o.x - px, o.z - pz) < d)) break;
+          k = d;
+        }
+        reach.push(k);
+      }
+      return reach.sort((p, q) => p - q)[8];
+    };
     for (const t of [...data.trees, ...handTrees]) {
       const x = Math.floor(t.x), z = Math.floor(t.z);
       if (!inBounds(x, z, 4) || G.has(x, z, 1 | 64 | 8)) continue;
       if (notTrees.some(([nx, nz]) => Math.hypot(nx - t.x, nz - t.z) < 2)) continue;
-      const r = Math.max(2.5, Math.min(7, t.r / mps * 0.9));
+      const r = Math.max(2.5, Math.min(7, Math.max(t.r / mps * 0.9, t.at ? 0 : crownReach(t))));
       // evergreens (the laser couldn't get through the crown in the leafless survey, tools/tree_kinds.py) are dark and
       // dense; the narrow ones, whose canopy falls away fast from the top, are conifers with a cone of a crown
       const ev = (t.ev ?? 0) > 0.5, conifer = ev && t.h / Math.max(1, t.r) >= 4.5, tall = t.h / (BRICK * mps);
