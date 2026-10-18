@@ -193,7 +193,9 @@ export function tree(W, x, z, o = {}) {
   const R2 = Math.ceil(r);
   const inside = cone ? (dx, dy, dz) => dy >= 0 && dy <= cone && Math.hypot(dx, dz) <= Math.max(0.6, r * (1 - dy / cone))
     : (dx, dy, dz) => (dx * dx + dz * dz) / (r * r) + (dy * dy) / (ry * ry) <= 1;
-  const put = (dx, dy, dz, c) => { const y = Math.round(cy + dy); if (y >= 2 && !W.has(x + dx, y, z + dz)) W.set(x + dx, y, z + dz, c, F_NOCOLLIDE | F_PLAIN); };
+  // (a bush, on a trunk of one brick, is leafy down to it)
+  const placed = [];
+  const put = (dx, dy, dz, c) => { const y = Math.round(cy + dy); if (y >= Math.min(2, h) && !W.has(x + dx, y, z + dz)) { W.set(x + dx, y, z + dz, c, F_NOCOLLIDE | F_PLAIN); placed.push([x + dx, y, z + dz]); } };
   const thin = o.keep < 1, key = (dx, dy, dz) => dx + ',' + dy + ',' + dz;
   const twigs = new Map();   // a thin crown's leaves or twigs, kept below only where they hang off a limb
   for (let dy = cone ? 0 : -Math.ceil(ry); dy <= Math.ceil(ry); dy++) for (let dz = -R2; dz <= R2; dz++) for (let dx = -R2; dx <= R2; dx++) {
@@ -205,7 +207,18 @@ export function tree(W, x, z, o = {}) {
     if (!thin || (dx === 0 && dz === 0)) put(dx, dy, dz, c);
     else if (R() < Math.min(1, o.keep * 1.6)) twigs.set(key(dx, dy, dz), [dx, dy, dz, c]);   // spring, autumn, bare winter twigs
   }
-  if (!thin) return;
+  // the ragged edge can leave a leaf with none of the crown beside it (by a face or an edge), hanging in the air
+  if (!thin) {
+    for (const [px, py, pz] of placed) {
+      let joined = false;
+      for (let ddy = -1; ddy <= 1 && !joined; ddy++) for (let ddz = -1; ddz <= 1 && !joined; ddz++) for (let ddx = -1; ddx <= 1; ddx++) {
+        const m = Math.abs(ddx) + Math.abs(ddy) + Math.abs(ddz);
+        if (m && m <= 2 && W.has(px + ddx, py + ddy, pz + ddz)) { joined = true; break; }
+      }
+      if (!joined) W.del(px, py, pz);
+    }
+    return;
+  }
   // A thin crown (bare in winter, sparse in spring and autumn) would otherwise leave blocks hanging in the air: limbs
   // run up and out from the trunk to the crown's edge, block against block, and only the twigs joined to them (by a
   // face or an edge, not just a corner) stay
@@ -223,7 +236,7 @@ export function tree(W, x, z, o = {}) {
       }
     }
   }
-  for (let dy = -Math.ceil(ry); dy <= Math.ceil(ry); dy++) if (inside(0, dy, 0)) reached.push([0, dy, 0]);
+  for (let dy = -Math.ceil(ry); dy <= Math.ceil(ry); dy++) if (inside(0, dy, 0) && W.has(x, Math.round(cy + dy), z)) reached.push([0, dy, 0]);   // only where the trunk column was built
   while (reached.length) {
     const [ax, ay, az] = reached.pop();
     for (let ddy = -1; ddy <= 1; ddy++) for (let ddz = -1; ddz <= 1; ddz++) for (let ddx = -1; ddx <= 1; ddx++) {
